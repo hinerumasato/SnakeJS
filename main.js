@@ -7,8 +7,8 @@ $(document).ready(function () {
     const CANVAS_HEIGHT = 600;
     const SPRITE_WIDTH = 30;
     const SPRITE_HEIGHT = 15;
-    const FRAME_NUM = 60;
-    const FPS = FRAME_NUM / 1000;
+    const FPS = 60;
+    const INTERVAL = 1000 / FPS;
     const canvas = document.querySelector('canvas');
 
     const Sprites = {
@@ -51,6 +51,59 @@ $(document).ready(function () {
             const response = await fetch(imageURL);
             const blob = await response.blob();
             return blob;
+        }
+    }
+
+    /**
+     * Class dùng để lưu trữ sẵn đối tượng bitmap để không phải đọc file nhiều lần làm giảm hiệu năng thực thi
+     */
+    class ImageBitmapHolder {
+        static instance;
+        constructor() {
+            this.bitmapObj = {}
+            this.loadBitmaps();
+        }
+
+
+        /**
+         * Tải tất cả các sprite và biến nó thành đối tượng bitmap
+         */
+        async loadBitmaps() {
+            this.bitmapObj = {
+                [Sprites.APPLE]: await createImageBitmap(await Util.createImageBlob(Sprites.APPLE)),
+                [Sprites.BODY_HORIZONTAL]: await createImageBitmap(await Util.createImageBlob(Sprites.BODY_HORIZONTAL)),
+                [Sprites.BODY_VERTICAL]: await createImageBitmap(await Util.createImageBlob(Sprites.BODY_VERTICAL)),
+                [Sprites.BODY_BOTTOMLEFT]: await createImageBitmap(await Util.createImageBlob(Sprites.BODY_BOTTOMLEFT)),
+                [Sprites.BODY_BOTTOMRIGHT]: await createImageBitmap(await Util.createImageBlob(Sprites.BODY_BOTTOMRIGHT)),
+                [Sprites.BODY_TOPLEFT]: await createImageBitmap(await Util.createImageBlob(Sprites.BODY_TOPLEFT)),
+                [Sprites.BODY_TOPRIGHT]: await createImageBitmap(await Util.createImageBlob(Sprites.BODY_TOPRIGHT)),
+                [Sprites.HEAD_DOWN]: await createImageBitmap(await Util.createImageBlob(Sprites.HEAD_DOWN)),
+                [Sprites.HEAD_UP]: await createImageBitmap(await Util.createImageBlob(Sprites.HEAD_UP)),
+                [Sprites.HEAD_LEFT]: await createImageBitmap(await Util.createImageBlob(Sprites.HEAD_LEFT)),
+                [Sprites.HEAD_RIGHT]: await createImageBitmap(await Util.createImageBlob(Sprites.HEAD_RIGHT)),
+                [Sprites.TAIL_DOWN]: await createImageBitmap(await Util.createImageBlob(Sprites.TAIL_DOWN)),
+                [Sprites.TAIL_UP]: await createImageBitmap(await Util.createImageBlob(Sprites.TAIL_UP)),
+                [Sprites.TAIL_LEFT]: await createImageBitmap(await Util.createImageBlob(Sprites.TAIL_LEFT)),
+                [Sprites.TAIL_RIGHT]: await createImageBitmap(await Util.createImageBlob(Sprites.TAIL_RIGHT)),
+            }
+        }
+
+        /**
+         * @returns {ImageBitmapHolder}
+         */
+        static getInstance() {
+            if(this.instance == null)
+                this.instance = new ImageBitmapHolder();
+            return this.instance;
+        }
+
+        /**
+         * 
+         * @param {string} key 
+         * @returns {ImageBitmap}
+         */
+        getBitmap(key) {
+            return this.bitmapObj[key];
         }
     }
 
@@ -205,7 +258,10 @@ $(document).ready(function () {
             let newPoint = null;
             switch (direction) {
                 case Direction.RIGHT:
-                    newPoint = new Point(oldPoint.x + 1, oldPoint.y);
+                    let dx = 1
+                    let oldX = oldPoint.x;
+                    let newX = (oldPoint.x + dx) * SPRITE_WIDTH > (CANVAS_WIDTH - 310) ? 0 : oldX + dx;
+                    newPoint = new Point(newX, oldPoint.y);
                     break;
 
                 default:
@@ -249,11 +305,13 @@ $(document).ready(function () {
             this.height = CANVAS_HEIGHT;
             this.snake = null;
             this.direction = null;
+            this.imageBitmapHolder = null;
         }
 
         init() {
             this.snake = Snake.createNewSnake();
             this.direction = Direction.getInstance();
+            this.imageBitmapHolder = ImageBitmapHolder.getInstance();
         }
 
         /**
@@ -264,17 +322,19 @@ $(document).ready(function () {
             const context = canvas.getContext('2d');
             context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
             this.snake.cells.forEach(async cell => {
-                const imageBlob = await Util.createImageBlob(cell.sprite);
-                const imageBitmap = await createImageBitmap(imageBlob);
+                const imageBitmap = this.imageBitmapHolder.getBitmap(cell.sprite);
                 context.drawImage(imageBitmap, cell.point.x * SPRITE_WIDTH, cell.point.y * SPRITE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT);
             });
         }
 
         update() {
             setInterval(() => {
-                this.snake.move(Direction.RIGHT);
                 this.drawComponents(canvas);
-            }, FPS)
+            }, INTERVAL);
+
+            setInterval(() => {
+                this.snake.move(Direction.RIGHT);
+            }, 100)
         }
 
         start() {
