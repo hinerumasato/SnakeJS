@@ -7,9 +7,11 @@ $(document).ready(function () {
     const CANVAS_HEIGHT = 600;
     const SPRITE_WIDTH = 30;
     const SPRITE_HEIGHT = 15;
-    const FPS = 60;
+    const MOVE_INTERVAL = 10;
+    const FPS = 200;
     const INTERVAL = 1000 / FPS;
     const canvas = document.querySelector('canvas');
+    let moveCounter = 0;
 
     const Sprites = {
         APPLE: './img/apple.png',
@@ -34,7 +36,8 @@ $(document).ready(function () {
     }
 
     const Constants = {
-        INIT_LENGTH: 3 // Chiều dài ban đầu của rắn
+        INIT_LENGTH: 3, // Chiều dài ban đầu của rắn
+        VELOCITY: 0.2, // Tốc độ của rắn
     }
 
     /**
@@ -178,6 +181,32 @@ $(document).ready(function () {
             this.y = y;
         }
 
+        /**
+         * Phương thức nhận vào hướng di chuyển và địa điểm hiện tại, tuỳ vào hướng di chuyển
+         * sẽ tính toán ra địa điểm tiếp theo cho rắn, nếu địa điểm tiếp theo có x hoặc y đi ra khỏi 
+         * viền của canvas thì thiết lập toạ độ tiếp theo sẽ là đầu hoặc cuối map
+         * @param {Number} direction hướng di chuyển để tính địa điểm tiếp theo
+         * @param {Point} oldPoint vị trí cũ (vị trí hiện tại đang đứng)
+         * @returns {Point} địa điểm tiếp theo rắn cần đi tới
+         */
+        static computeNextPoint(direction, oldPoint) {
+            let newX = 0;
+            let newY = 0;
+
+            switch (direction) {
+                case Direction.RIGHT:
+                    let oldX = oldPoint.x;
+                    newX = (oldPoint.x + Constants.VELOCITY) * SPRITE_WIDTH > (CANVAS_WIDTH - 310) ? -Constants.VELOCITY : oldX + Constants.VELOCITY;
+                    newY = oldPoint.y;                    
+                    break;
+            
+                default:
+                    break;
+            }
+            return new Point(newX, newY);
+        }
+
+        
         toString() {
             return "Point: " + this.x + " " + this.y;
         }
@@ -215,22 +244,36 @@ $(document).ready(function () {
         /**
          * Phương thức khởi tạo trạng thái ban đầu của rắn và trả về đối tượng Snake
          * Thông tin trạng thái đầu tiên: 
-         * + Đầu ở vị trí 2, 0
          * + Rắn đi qua phải
+         * + Vì rắn đi qua phải, ta cần tạo đầu rắn ở vị trí cells[0] là x = length - 1
+         * + Các vị trí thân đến đuôi (cells[1] -> cells[length-1]) 
+         * sẽ dùng vòng lặp bắt đầu từ x = length - 2 đổ về x = 0
+         * + Vị trí y = 0 cho tất cả các tế bào
+         * + Sau đó tại mỗi tế bào cộng x lên giá trị Velocity để tạo ra v0 (Vận tốc đầu) của mỗi tế bào
          * @returns {Snake} đối tượng snake mới được khởi tạo
          */
         static createNewSnake() {
             const cells = [];
             const snakeLength = Constants.INIT_LENGTH;
             // Tạo đầu rắn
-            const head = new Cell(new Point(2, 0), Sprites.HEAD_RIGHT);
+            let firstX = snakeLength - 1 + Constants.VELOCITY;
+            let firstY = 0;
+            const head = new Cell(new Point(firstX, firstY), Sprites.HEAD_RIGHT);
             cells.push(head);
+
+            // Tạo thân rắn
             for (let i = 1; i < snakeLength; i++) {
-                const body = new Cell(new Point(snakeLength - i - 1, 0), Sprites.BODY_HORIZONTAL)
+                let bodyX = snakeLength - i - 1 + Constants.VELOCITY;
+                let bodyY = 0;
+                const body = new Cell(new Point(bodyX, bodyY), Sprites.BODY_HORIZONTAL)
                 cells.push(body);
             }
-            const tail = cells.last();
-            tail.setSprite(Sprites.TAIL_LEFT);
+
+            // Thiết lập tế bào cuối cùng là đuôi rắn nếu độ dài khởi điểm lớn hơn 1
+            if(snakeLength > 1) {
+                const tail = cells.last();
+                tail.setSprite(Sprites.TAIL_LEFT);
+            }
 
             const snake = new Snake(snakeLength, cells);
             return snake;
@@ -252,33 +295,35 @@ $(document).ready(function () {
             // Cập nhật tail mới và đổi sprite tail cũ thành thân
         }
 
-        move(direction) {
-            const head = this.cells[0];
-            const oldPoint = head.point;
-            let newPoint = null;
-            switch (direction) {
-                case Direction.RIGHT:
-                    let dx = 1
-                    let oldX = oldPoint.x;
-                    let newX = (oldPoint.x + dx) * SPRITE_WIDTH > (CANVAS_WIDTH - 310) ? 0 : oldX + dx;
-                    newPoint = new Point(newX, oldPoint.y);
-                    break;
-
-                default:
-                    break;
+        /**
+         * Phương thức dùng để di chuyển thân theo đầu rắn, cụ thể:
+         * + Trước khi di chuyển đầu rắn ta di chuyển cơ thể rắn bằng chạy vòng lặp i từ length - 1 -> 1
+         * + Trong vòng lặp thực hiện câu lệnh cells[i] = cells[i-1]
+         */
+        moveBody() {
+            let newCells = [...this.cells];
+            for (let i = this.length - 1; i > 0; i--) {
+                const newCell = new Cell(Point.computeNextPoint(Direction.RIGHT, newCells[i].point), newCells[i-1].sprite);
+                newCells[i] = newCell;
             }
-
-            // Tạo một bản sao của mảng cells
-            let newCells = this.cells.slice();
-            // Cập nhật vị trí của đầu
-            newCells[0] = { ...head, point: newPoint };
-            // Cập nhật vị trí của các ô còn lại
-            for (let i = 1; i < this.cells.length; i++) {
-                newCells[i] = { ...this.cells[i], point: this.cells[i - 1].point };
-            }
-
-            // Cập nhật mảng cells
+            // Cập nhật mảng cells với mảng mới
             this.cells = newCells;
+            this.cells[1].sprite = Sprites.BODY_HORIZONTAL;
+            this.cells.last().sprite = Sprites.TAIL_LEFT;
+        }
+        
+
+        /**
+         * Phương thức dùng để di chuyển rắn, bao gồm cả việc di chuyển thân và di chuyển đầu
+         * @param {Number} direction hướng di chuyển
+         */
+        move(direction) {
+            this.moveBody();
+            // Di chuyển đầu
+            let head = this.cells[0];
+            const newPoint = Point.computeNextPoint(direction, new Point(head.point.x, head.point.y));
+            head.point = newPoint;
+            head = new Cell(newPoint, this.cells[0].sprite);
         }
     }
 
@@ -290,8 +335,8 @@ $(document).ready(function () {
          * @param {Point} point toạ độ của mồi
          */
         constructor(point) {
-            this.point = point;
             super(Sprites.APPLE);
+            this.point = point;
         }
     }
 
@@ -304,12 +349,14 @@ $(document).ready(function () {
             this.width = CANVAS_WIDTH;
             this.height = CANVAS_HEIGHT;
             this.snake = null;
+            this.bait = null;
             this.direction = null;
             this.imageBitmapHolder = null;
         }
 
         init() {
             this.snake = Snake.createNewSnake();
+            this.bait = new Bait(new Point(6, 3));
             this.direction = Direction.getInstance();
             this.imageBitmapHolder = ImageBitmapHolder.getInstance();
         }
@@ -318,23 +365,29 @@ $(document).ready(function () {
          * @param {HTMLCanvasElement} canvas 
          * Phương thức nhận vào một canvas element, sau đó lần lượt vẽ rắn, mồi trên phần tử canvas đó
          */
-        async drawComponents(canvas) {
+        drawComponents(canvas) {
             const context = canvas.getContext('2d');
             context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-            this.snake.cells.forEach(async cell => {
+            this.snake.cells.forEach(cell => {
                 const imageBitmap = this.imageBitmapHolder.getBitmap(cell.sprite);
                 context.drawImage(imageBitmap, cell.point.x * SPRITE_WIDTH, cell.point.y * SPRITE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT);
             });
+
+            // Vẽ mồi
+            const imageBitmap = this.imageBitmapHolder.getBitmap(this.bait.sprite);
+            const point = this.bait.point;
+            context.drawImage(imageBitmap, point.x * SPRITE_WIDTH, point.y * SPRITE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT);
         }
 
         update() {
             setInterval(() => {
+                moveCounter++;
+                if(moveCounter >= (60 / MOVE_INTERVAL)) {
+                    this.snake.move(Direction.RIGHT);
+                    moveCounter = 0;
+                }
                 this.drawComponents(canvas);
             }, INTERVAL);
-
-            setInterval(() => {
-                this.snake.move(Direction.RIGHT);
-            }, 100)
         }
 
         start() {
