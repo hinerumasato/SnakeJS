@@ -47,7 +47,7 @@ $(document).ready(function () {
     ];
 
     const Constants = {
-        INIT_LENGTH: 6, // Chiều dài ban đầu của rắn
+        INIT_LENGTH: 3, // Chiều dài ban đầu của rắn
         VELOCITY: 0.5, // Tốc độ của rắn
     }
 
@@ -95,7 +95,7 @@ $(document).ready(function () {
         }
 
         /**
-         * Phương thức dùng để đổi từ Direction sang turn sprite
+         * Phương thức dùng để mapping từ Direction sang turn sprite
          * @param {Direction} direction 
          * @returns {string}
          */
@@ -133,7 +133,7 @@ $(document).ready(function () {
         }
 
         /**
-         * 
+         * Phương thức dùng để mapping từ direction sang sprite của đuôi rắn tương ứng
          * @param {Direction} direction
          * @returns {string} Sprite của đuôi
          */
@@ -155,6 +155,7 @@ $(document).ready(function () {
         }
 
         /**
+         * Phương thức dùng để mapping từ lớp direction sang body vertical hoặc horizontal tương ứng
          * @param {Direction} direction 
          * @returns {String} body vertial hoặc horizontal cho rắn
          */
@@ -170,7 +171,8 @@ $(document).ready(function () {
     }
 
     /**
-     * Class dùng để lưu trữ sẵn đối tượng bitmap để không phải đọc file nhiều lần làm giảm hiệu năng thực thi
+     * Class dùng để lưu trữ sẵn đối tượng bitmap để không phải đọc file nhiều lần 
+     * làm tăng hiệu năng thực thi
      */
     class ImageBitmapHolder {
         static instance;
@@ -266,7 +268,7 @@ $(document).ready(function () {
          * 
          * @param {Array<SpriteItem>} items1 
          * @param {Array<SpriteItem>} items2 
-         * @param {Function} doIfCollision Thực hiện sau khi va chạm
+         * @param {Function} doIfCollision gọi phương thức doIfCollision sau khi va chạm
          */
         static check(items1, items2, doIfCollision) {
             for (const item1 of items1) {
@@ -372,6 +374,7 @@ $(document).ready(function () {
          * Phương thức nhận vào giá trị đầu và cuối khi di chuyển, phương thức này sẽ
          * tính toán các điểm trung gian dựa trên tỷ lệ phần trăm giữa hai điểm
          * Ví dụ rắn di chuyển (1, 0) -> (2, 0) và v = 0.1 thì sẽ đi 1.1, 1.2, 1.3 ... 2
+         * PHƯƠNG THỨC NÀY CÒN ĐANG TRONG QUÁ TRÌNH THỬ NGHIỆM
          * @param {Point} start vị trí bắt đầu
          * @param {Point} end vị trí kết thúc
          * @param {Number} v vận tốc
@@ -394,6 +397,7 @@ $(document).ready(function () {
 
         /**
          * 
+         * * PHƯƠNG THỨC NÀY CÒN ĐANG TRONG QUÁ TRÌNH THỬ NGHIỆM
          * @param {Number} start 
          * @param {Number} end 
          * @param {Number} v 
@@ -416,22 +420,44 @@ $(document).ready(function () {
         }
 
     }
-
+    /**
+     * Tạo một mục điểm quay đầu mới.
+     *
+     * @class TurnPointItem
+     * @constructor
+     * @param {Point} point - Vị trí của điểm quay đầu.
+     * @param {string} sprite - Tên sprite liên quan đến điểm quay đầu.
+     */
     class TurnPointItem {
-        /**
-         * 
-         * @param {Point} point 
-         * @param {String} sprite 
-         */
         constructor(point, sprite) {
+            /**
+             * Vị trí của điểm quay đầu.
+             * @type {Point}
+             */
             this.point = point;
+
+            /**
+             * Tên sprite liên quan đến điểm quay đầu.
+             * @type {string}
+             */
             this.sprite = sprite;
         }
     }
 
+    /**
+     * Lưu trữ các item TurnPointItem và là một instance được tạo ra từ singleton
+     * design pattern
+     */
     class TurnPointHolder {
+        /**
+         * @type {TurnPointHolder}
+         * @static
+         */
         static instance = null;
         constructor() {
+            /**
+             * @type {Array<TurnPointItem>}
+             */
             this.turnPointItems = [];
         }
 
@@ -445,6 +471,7 @@ $(document).ready(function () {
             return this.instance;
         }
         /**
+         * Phương thức dùng để lưu một turn point item mới vào mảng items
          * @param {TurnPointItem} turnPointItem 
          */
         store(turnPointItem) {
@@ -456,7 +483,7 @@ $(document).ready(function () {
         }
 
         /**
-         * 
+         * Xoá item khi đưa vào một point chỉ định
          * @param {Point} point 
          */
         removeByPoint(point) {
@@ -466,12 +493,11 @@ $(document).ready(function () {
                     result.push(item);
                 }
             }
-            console.log(result);
             this.turnPointItems = result;
         }
 
         /**
-         * 
+         * Phương thức dùng để kiểm tra có tồn tại một điểm trong Holder hay không
          * @param {Point} point 
          * @returns {Boolean} trả về true nếu point có tồn tải trong mảng items và ngược lại
          */
@@ -486,7 +512,7 @@ $(document).ready(function () {
         /**
          * 
          * @param {Point} point 
-         * @returns {TurnPointItem}
+         * @returns {TurnPointItem|null}
          */
         getItemByPoint(point) {
             for (let item of this.turnPointItems) {
@@ -582,7 +608,12 @@ $(document).ready(function () {
         /**
          * Phương thức dùng để di chuyển thân theo đầu rắn, cụ thể:
          * + Trước khi di chuyển đầu rắn ta di chuyển cơ thể rắn bằng chạy vòng lặp i từ length - 1 -> 1
-         * + Trong vòng lặp thực hiện câu lệnh cells[i] = cells[i-1]
+         * + Trong vòng lặp thực hiện câu lệnh cells[i] = cells[i-1] 
+         * nhằm để copy toàn bộ dữ liệu của cells[i-1] vào cells[i] bao gôm point và sprite nằm trong cell
+         * + Sau đó kiểm tra tại các vị trí mà con rắn đang chiếm, có điểm nào nằm trong turnPointHolder
+         * hay không, nếu tồn tại thì tiến hành đổi sprite lại thành sprite rẽ hướng (BODY_BOTTOMLEFT, ...)
+         * + Cuối cùng tiến hành kiểm tra nếu đuôi rắn tức là cells[length - 1] mà đã đi qua điểm
+         * nằm trong Holder thì tiến hành xoá TurnPointItem trong Holder đó
         */
         moveBody() {
             const turnPointHolder = TurnPointHolder.getInstance();
@@ -594,10 +625,13 @@ $(document).ready(function () {
                 const newPoint = beforeCellPoint;
                 const beforeCellSprite = beforeCell.sprite;
 
+                // Kiểm tra đuôi đi qua
                 if (i == this.length - 1 && turnPointHolder.isContainPoint(cell.point)) {
                     turnPointHolder.removeByPoint(cell.point);
                     cell = new Cell(newPoint, Util.mapDirectionToTail(Direction.getInstance()));
                 }
+
+                // Kiểm tra body rắn có nằm trong holder hay không
                 if (turnPointHolder.isContainPoint(newPoint) && i != 1) {
                     const item = turnPointHolder.getItemByPoint(newPoint);
                     cell = new Cell(newPoint, item.sprite);
@@ -607,6 +641,9 @@ $(document).ready(function () {
             }
             // Cập nhật mảng cells với mảng mới
             this.cells = newCells;
+
+            /* Cập nhật lại vị trí "cổ rắn" cells[1] nếu không nằm trong holder thì đổi lại
+                thành body tương ứng (BODY_VERTICAL, BODY_HORIZONTAL)*/
             if (!turnPointHolder.isContainPoint(this.cells[1].point))
                 this.cells[1].sprite = Util.mapDirectionToBody(Direction.getInstance());
         }
@@ -648,8 +685,8 @@ $(document).ready(function () {
                     break;
                 default:
                     break;
-                
-                }
+
+            }
             // this.cells.last().sprite = Util.mapDirectionToTail(direction);
         }
     }
@@ -749,6 +786,10 @@ $(document).ready(function () {
             const _this = this;
             $(document).on('keyup', function (e) {
 
+                /**
+                 * Phương thức dùng để tạo một đối tượng TurnPointItem mới khi người dùng
+                 * rẽ hướng, sau đó lưu vào trong TurnPointHolder
+                 */
                 const storeNewTurnPointItem = () => {
                     const turnPoint = _this.snake.cells[0].point;
                     const turnSprite = Util.mapDirectionToTurnSprite(_this.direction);
