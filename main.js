@@ -3,14 +3,17 @@ Array.prototype.last = function () {
 }
 
 $(document).ready(function () {
-    const CANVAS_WIDTH = 350;
-    const CANVAS_HEIGHT = 150;
-    const SPRITE_WIDTH = 30;
-    const SPRITE_HEIGHT = 15;
-    const MOVE_INTERVAL = 10;
-    const FPS = 60;
-    const INTERVAL = 1000 / FPS;
     const canvas = document.querySelector('canvas');
+
+    const CANVAS_WIDTH = canvas.width;
+    const CANVAS_HEIGHT = canvas.height;
+    const ROW = 10;
+    const COLUMN = 10;
+    const SPRITE_WIDTH = 50;
+    const SPRITE_HEIGHT = 50;
+    const MOVE_INTERVAL = 10;
+    const FPS = 45;
+    const INTERVAL = 1000 / FPS;
     let moveCounter = 0;
 
     const Sprites = {
@@ -36,8 +39,15 @@ $(document).ready(function () {
         TAIL_RIGHT: './img/tail_right.png',
     }
 
+    const TurnSprites = [
+        Sprites.BODY_BOTTOMLEFT,
+        Sprites.BODY_BOTTOMRIGHT,
+        Sprites.BODY_TOPLEFT,
+        Sprites.BODY_TOPRIGHT,
+    ];
+
     const Constants = {
-        INIT_LENGTH: 3, // Chiều dài ban đầu của rắn
+        INIT_LENGTH: 6, // Chiều dài ban đầu của rắn
         VELOCITY: 0.5, // Tốc độ của rắn
     }
 
@@ -64,6 +74,98 @@ $(document).ready(function () {
          */
         static randomNumber(bound) {
             return Math.floor(Math.random() * bound);
+        }
+
+        /**
+         * Phương thức dùng để đổi từ sprite đang rẽ góc thành sprite thẳng
+         * @param {string} turnSprite 
+         * @returns {string} straight sprite
+         */
+        static mapTurnSpriteToStraightSprite(turnSprite) {
+            switch (turnSprite) {
+                case Sprites.BODY_BOTTOMLEFT:
+                case Sprites.BODY_TOPLEFT:
+                    return Sprites.BODY_VERTICAL;
+                case Sprites.BODY_BOTTOMRIGHT:
+                case Sprites.BODY_TOPRIGHT:
+                    return Sprites.BODY_HORIZONTAL;
+                default:
+                    return null;
+            }
+        }
+
+        /**
+         * Phương thức dùng để đổi từ Direction sang turn sprite
+         * @param {Direction} direction 
+         * @returns {string}
+         */
+        static mapDirectionToTurnSprite(direction) {
+            const oldDirection = direction.oldDirection;
+            const currentDirection = direction.currentDirection;
+
+            if (oldDirection == Direction.LEFT && currentDirection == Direction.DOWN)
+                return Sprites.BODY_BOTTOMRIGHT;
+            else if (oldDirection == Direction.DOWN && currentDirection == Direction.RIGHT)
+                return Sprites.BODY_TOPRIGHT;
+            else if (oldDirection == Direction.RIGHT && currentDirection == Direction.UP)
+                return Sprites.BODY_TOPLEFT;
+            else if (oldDirection == Direction.UP && currentDirection == Direction.LEFT)
+                return Sprites.BODY_BOTTOMLEFT;
+            else if (oldDirection == Direction.LEFT && currentDirection == Direction.UP)
+                return Sprites.BODY_TOPRIGHT;
+            else if (oldDirection == Direction.UP && currentDirection == Direction.RIGHT)
+                return Sprites.BODY_BOTTOMRIGHT;
+            else if (oldDirection == Direction.RIGHT && currentDirection == Direction.DOWN)
+                return Sprites.BODY_BOTTOMLEFT;
+            else if (oldDirection == Direction.DOWN && currentDirection == Direction.LEFT)
+                return Sprites.BODY_TOPLEFT;
+
+
+            else if (oldDirection == null) {
+                switch (currentDirection) {
+                    case Direction.LEFT:
+                    case Direction.RIGHT:
+                        return Sprites.BODY_HORIZONTAL;
+                    default:
+                        return Sprites.BODY_VERTICAL;
+                }
+            }
+        }
+
+        /**
+         * 
+         * @param {Direction} direction
+         * @returns {string} Sprite của đuôi
+         */
+        static mapDirectionToTail(direction) {
+            const oldDirection = direction.oldDirection;
+            const currentDirection = direction.currentDirection;
+
+            if (oldDirection) {
+                if ((oldDirection == Direction.LEFT || oldDirection == Direction.RIGHT) && currentDirection == Direction.DOWN)
+                    return Sprites.TAIL_UP;
+                if ((oldDirection == Direction.LEFT || oldDirection == Direction.RIGHT) && currentDirection == Direction.UP)
+                    return Sprites.TAIL_DOWN;
+                if ((oldDirection == Direction.UP || oldDirection == Direction.DOWN) && currentDirection == Direction.RIGHT)
+                    return Sprites.TAIL_LEFT;
+                if ((oldDirection == Direction.UP || oldDirection == Direction.DOWN) && currentDirection == Direction.LEFT)
+                    return Sprites.TAIL_RIGHT;
+            }
+            else return Sprites.TAIL_LEFT;
+        }
+
+        /**
+         * @param {Direction} direction 
+         * @returns {String} body vertial hoặc horizontal cho rắn
+         */
+        static mapDirectionToBody(direction) {
+            switch (direction.currentDirection) {
+                case Direction.LEFT:
+                case Direction.RIGHT:
+                    return Sprites.BODY_HORIZONTAL
+                default:
+                    return Sprites.BODY_VERTICAL
+            }
         }
     }
 
@@ -170,7 +272,7 @@ $(document).ready(function () {
             for (const item1 of items1) {
                 const point = item1.point;
                 for (const item2 of items2) {
-                    if(point.equal(item2.point)) {
+                    if (point.equal(item2.point)) {
                         doIfCollision();
                         return; // Thoát khỏi phương thức check ngay lập tức sau khi phát hiện va chạm
                     }
@@ -190,6 +292,7 @@ $(document).ready(function () {
         static instance = null;
         constructor() {
             this.currentDirection = Direction.RIGHT;
+            this.oldDirection = null;
         }
 
         /**
@@ -197,6 +300,7 @@ $(document).ready(function () {
          * @param {Number} newDirection 
          */
         setDirection(newDirection) {
+            this.oldDirection = this.currentDirection;
             this.currentDirection = newDirection;
         }
 
@@ -241,20 +345,20 @@ $(document).ready(function () {
             let oldY = oldPoint.y;
             switch (direction) {
                 case Direction.RIGHT:
-                    newX = (oldX + 3) * SPRITE_WIDTH > CANVAS_WIDTH ? 0 : oldX + 1;
+                    newX = oldX + 1 >= COLUMN ? 0 : oldX + 1;
                     newY = oldPoint.y;
                     break;
                 case Direction.DOWN:
                     newX = oldPoint.x;
-                    newY = (oldY + 1) * SPRITE_HEIGHT > CANVAS_HEIGHT ? 0 : oldY + 1;
+                    newY = oldY + 1 >= ROW ? 0 : oldY + 1;
                     break;
                 case Direction.LEFT:
-                    newX = (oldX - 1) * SPRITE_WIDTH < 0 ? SPRITE_WIDTH : oldX - 1;
+                    newX = oldX - 1 < 0 ? COLUMN - 1 : oldX - 1;
                     newY = oldPoint.y;
                     break;
                 case Direction.UP:
                     newX = oldX;
-                    newY = (oldY - 1) * SPRITE_HEIGHT < 0 ? SPRITE_HEIGHT : oldY - 1;
+                    newY = oldY - 1 < 0 ? ROW - 1 : oldY - 1;
                     break;
                 default:
                     break;
@@ -311,6 +415,86 @@ $(document).ready(function () {
             return "Point: " + this.x + " " + this.y;
         }
 
+    }
+
+    class TurnPointItem {
+        /**
+         * 
+         * @param {Point} point 
+         * @param {String} sprite 
+         */
+        constructor(point, sprite) {
+            this.point = point;
+            this.sprite = sprite;
+        }
+    }
+
+    class TurnPointHolder {
+        static instance = null;
+        constructor() {
+            this.turnPointItems = [];
+        }
+
+        /**
+         * 
+         * @returns {TurnPointHolder} instance
+         */
+        static getInstance() {
+            if (this.instance == null)
+                this.instance = new TurnPointHolder();
+            return this.instance;
+        }
+        /**
+         * @param {TurnPointItem} turnPointItem 
+         */
+        store(turnPointItem) {
+            this.turnPointItems.push(turnPointItem);
+        }
+
+        remove() {
+            this.turnPointItems.pop();
+        }
+
+        /**
+         * 
+         * @param {Point} point 
+         */
+        removeByPoint(point) {
+            const result = [];
+            for (let item of this.turnPointItems) {
+                if (!item.point.equal(point)) {
+                    result.push(item);
+                }
+            }
+            console.log(result);
+            this.turnPointItems = result;
+        }
+
+        /**
+         * 
+         * @param {Point} point 
+         * @returns {Boolean} trả về true nếu point có tồn tải trong mảng items và ngược lại
+         */
+        isContainPoint(point) {
+            for (let item of this.turnPointItems) {
+                if (item.point.equal(point))
+                    return true;
+            }
+            return false;
+        }
+
+        /**
+         * 
+         * @param {Point} point 
+         * @returns {TurnPointItem}
+         */
+        getItemByPoint(point) {
+            for (let item of this.turnPointItems) {
+                if (item.point.equal(point))
+                    return item;
+            }
+            return null;
+        }
     }
 
     /**
@@ -391,7 +575,7 @@ $(document).ready(function () {
 
         grow() {
             this.length++;
-            const newCells = new Cell(new Point(0, 0), null);
+            const newCells = new Cell(new Point(-1, -1), null);
             this.cells.push(newCells);
         }
 
@@ -401,20 +585,32 @@ $(document).ready(function () {
          * + Trong vòng lặp thực hiện câu lệnh cells[i] = cells[i-1]
         */
         moveBody() {
-            let newCells = [...this.cells];
+            const turnPointHolder = TurnPointHolder.getInstance();
+            const newCells = [...this.cells];
             for (let i = this.length - 1; i > 0; i--) {
                 let cell = newCells[i];
                 const beforeCell = newCells[i - 1];
                 const beforeCellPoint = beforeCell.point;
                 const newPoint = beforeCellPoint;
-                cell = new Cell(newPoint, beforeCell.sprite);
+                const beforeCellSprite = beforeCell.sprite;
+
+                if (i == this.length - 1 && turnPointHolder.isContainPoint(cell.point)) {
+                    turnPointHolder.removeByPoint(cell.point);
+                    cell = new Cell(newPoint, Util.mapDirectionToTail(Direction.getInstance()));
+                }
+                if (turnPointHolder.isContainPoint(newPoint) && i != 1) {
+                    const item = turnPointHolder.getItemByPoint(newPoint);
+                    cell = new Cell(newPoint, item.sprite);
+                } else cell = new Cell(newPoint, beforeCellSprite);
+
                 newCells[i] = cell;
             }
             // Cập nhật mảng cells với mảng mới
             this.cells = newCells;
-            this.cells[1].sprite = Sprites.BODY_HORIZONTAL;
-            this.cells.last().sprite = Sprites.TAIL_LEFT;
+            if (!turnPointHolder.isContainPoint(this.cells[1].point))
+                this.cells[1].sprite = Util.mapDirectionToBody(Direction.getInstance());
         }
+
 
 
         /**
@@ -423,41 +619,38 @@ $(document).ready(function () {
         */
         move(direction) {
             this.moveBody();
-            this.changeSprites(direction);
-            // Di chuyển đầu
             let head = this.cells[0];
             const newPoint = Point.computeNextPoint(direction, new Point(head.point.x, head.point.y));
             head.point = newPoint;
             head = new Cell(newPoint, this.cells[0].sprite);
+            this.changeSprites(Direction.getInstance());
         }
 
         /**
          * Phương thức dùng để thay đổi sprite của rắn dựa vào hướng di chuyển
-         * @param {Number} direction hướng di chuyển
+         * @param {Direction} direction hướng di chuyển
          */
         changeSprites(direction) {
             const head = this.cells[0];
-            const tail = this.cells.last();
-            switch (direction) {
+            const currentDirection = direction.currentDirection;
+            switch (currentDirection) {
                 case Direction.RIGHT:
                     head.setSprite(Sprites.HEAD_RIGHT);
-                    this.cells[1].setSprite(Sprites.BODY_HORIZONTAL);
                     break;
                 case Direction.DOWN:
                     head.setSprite(Sprites.HEAD_DOWN);
-                    this.cells[1].setSprite(Sprites.BODY_VERTICAL);
                     break;
                 case Direction.LEFT:
                     head.setSprite(Sprites.HEAD_LEFT);
-                    this.cells[1].setSprite(Sprites.BODY_HORIZONTAL);
                     break;
                 case Direction.UP:
                     head.setSprite(Sprites.HEAD_UP);
-                    this.cells[1].setSprite(Sprites.BODY_VERTICAL);
                     break;
                 default:
                     break;
-            }
+                
+                }
+            // this.cells.last().sprite = Util.mapDirectionToTail(direction);
         }
     }
 
@@ -491,6 +684,7 @@ $(document).ready(function () {
             this.bait = null;
             this.direction = null;
             this.imageBitmapHolder = null;
+            this.turnPointHolder = null;
         }
 
         init() {
@@ -498,6 +692,7 @@ $(document).ready(function () {
             this.bait = new Bait(new Point(6, 3));
             this.direction = Direction.getInstance();
             this.imageBitmapHolder = ImageBitmapHolder.getInstance();
+            this.turnPointHolder = TurnPointHolder.getInstance();
         }
 
         /**
@@ -531,10 +726,9 @@ $(document).ready(function () {
                     this.snake.move(this.direction.currentDirection);
                     Collision.check([this.snake.cells[0]], [this.bait], () => {
                         this.snake.grow();
-                        
+
                         const baitX = Util.randomNumber(10);
                         const baitY = Util.randomNumber(10);
-                        console.log({baitX, baitY});
                         const newBaitPoint = new Point(baitX, baitY);
                         this.bait.point = newBaitPoint;
                     });
@@ -553,33 +747,46 @@ $(document).ready(function () {
 
         controlListener() {
             const _this = this;
-            $(document).on('keydown', function (e) {
+            $(document).on('keyup', function (e) {
+
+                const storeNewTurnPointItem = () => {
+                    const turnPoint = _this.snake.cells[0].point;
+                    const turnSprite = Util.mapDirectionToTurnSprite(_this.direction);
+                    const turnPointItem = new TurnPointItem(turnPoint, turnSprite);
+                    _this.turnPointHolder.store(turnPointItem);
+                }
+
                 switch (e.key) {
                     case 'ArrowRight':
                         _this.direction.setDirection(Direction.RIGHT);
+                        _this.snake.cells[0].sprite = Util.mapDirectionToTurnSprite(_this.direction);
+                        storeNewTurnPointItem();
                         break;
                     case 'ArrowDown':
                         _this.direction.setDirection(Direction.DOWN);
+                        _this.snake.cells[0].sprite = Util.mapDirectionToTurnSprite(_this.direction);
+                        storeNewTurnPointItem();
                         break;
                     case 'ArrowLeft':
                         _this.direction.setDirection(Direction.LEFT);
+                        _this.snake.cells[0].sprite = Util.mapDirectionToTurnSprite(_this.direction);
+                        storeNewTurnPointItem();
                         break;
                     case 'ArrowUp':
                         _this.direction.setDirection(Direction.UP);
+                        _this.snake.cells[0].sprite = Util.mapDirectionToTurnSprite(_this.direction);
+                        storeNewTurnPointItem();
+                        break;
                     default:
                         break;
                 }
             });
         }
 
-        handleEvents() {
-            this.controlListener();
-        }
-
         start() {
             this.init();
+            this.controlListener();
             this.update();
-            this.handleEvents();
         }
     }
 
