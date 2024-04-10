@@ -7,10 +7,10 @@ $(document).ready(function () {
 
     const CANVAS_WIDTH = canvas.width;
     const CANVAS_HEIGHT = canvas.height;
-    const ROW = 10;
-    const COLUMN = 10;
     const SPRITE_WIDTH = 50;
     const SPRITE_HEIGHT = 50;
+    const ROW = CANVAS_WIDTH / SPRITE_WIDTH;
+    const COLUMN = CANVAS_HEIGHT / SPRITE_HEIGHT;
     const MOVE_INTERVAL = 10;
     const FPS = 45;
     const INTERVAL = 1000 / FPS;
@@ -37,14 +37,9 @@ $(document).ready(function () {
         TAIL_UP: './img/tail_up.png',
         TAIL_LEFT: './img/tail_left.png',
         TAIL_RIGHT: './img/tail_right.png',
-    }
 
-    const TurnSprites = [
-        Sprites.BODY_BOTTOMLEFT,
-        Sprites.BODY_BOTTOMRIGHT,
-        Sprites.BODY_TOPLEFT,
-        Sprites.BODY_TOPRIGHT,
-    ];
+        GAME_OVER: './img/gameover.jpg',
+    }
 
     const Constants = {
         INIT_LENGTH: 3, // Chiều dài ban đầu của rắn
@@ -203,6 +198,7 @@ $(document).ready(function () {
                 [Sprites.TAIL_UP]: await createImageBitmap(await Util.createImageBlob(Sprites.TAIL_UP)),
                 [Sprites.TAIL_LEFT]: await createImageBitmap(await Util.createImageBlob(Sprites.TAIL_LEFT)),
                 [Sprites.TAIL_RIGHT]: await createImageBitmap(await Util.createImageBlob(Sprites.TAIL_RIGHT)),
+                [Sprites.GAME_OVER]: await createImageBitmap(await Util.createImageBlob(Sprites.GAME_OVER)),
             }
         }
 
@@ -698,6 +694,17 @@ $(document).ready(function () {
         constructor(point) {
             super(point, Sprites.APPLE);
         }
+
+        /**
+         * Tạo đối tượng Bait mới cho game
+         * @returns {Bait}
+         */
+        static createNewBait() {
+            const x = Util.randomNumber(COLUMN);
+            const y = Util.randomNumber(ROW)
+            const point = new Point(x, y);
+            return new Bait(point);
+        }
     }
 
     /**
@@ -710,23 +717,162 @@ $(document).ready(function () {
     }
 
     /**
+     * @abstract
+     * @class
+     * Lớp GameCreator có abstract method là createGame để tạo game theo level
+     */
+    class GameCreator {
+        constructor() {
+            /**
+             * @type {Snake}
+             */
+            this.snake = null;
+            /**
+             * @type {Bait}
+             */
+            this.bait = null;
+            /**
+             * @type {Array<Brick>}
+             */
+            this.bricks = null;
+        }
+        /**
+         * @abstract
+         */
+        createGame() { throw Error('Abstract Unimplement Method') }
+
+        /**
+         * 
+         * @returns {Snake}
+         */
+        getSnake() {
+            return this.snake;
+        }
+
+        /**
+         * 
+         * @returns {Bait}
+         */
+        getBait() {
+            return this.bait;
+        }
+
+        /**
+         * 
+         * @returns {Array<Brick>}
+         */
+        getBricks() {
+            return this.bricks;
+        }
+    }
+
+    /**
+     * Level 1 chỉ cần tạo rắn và tạo mồi, rắn di chuyển xuyên map
+     */
+    class FirstLevelCreator extends GameCreator {
+        /**
+         * @override
+         */
+        createGame() {
+            this.snake = Snake.createNewSnake();
+            this.bait = Bait.createNewBait();
+        }
+
+    }
+
+    /**
+     * Level 2 cần tạo các viên gạch bao xung quanh game
+     */
+    class SecondLevelCreator extends GameCreator {
+        /**
+         * @override
+         */
+        createGame() {
+            this.snake = this.createNewSnake();
+            this.bait = Bait.createNewBait();
+            this.bricks = this.createSurroundBricks();
+        }
+
+        /**
+         * Phương thức tạo rắn cho level 2, ta cần dịch chuyển vị trí của rắn ra khỏi vị trí
+         * các viên gạch
+         * @returns {Snake}
+         */
+        createNewSnake() {
+            this.snake = Snake.createNewSnake();
+            const newCells = [...this.snake.cells];
+            for(let newCell of newCells) {
+                const oldPoint = newCell.point;
+                const newPoint = new Point(oldPoint.x, oldPoint.y + 1);
+                newCell.point = newPoint;
+            }
+            this.snake.cells = newCells;
+            return this.snake;
+        }
+
+        /**
+         * Phương thức dùng để tạo ra các viên gạch bao quanh map
+         * Tạo bao quanh map cần tạo ra các brick có toạ độ: 
+         * [(0, 0), (1, 0), ... , (9, 0)] -> Đây là viền trên
+         * [(0, 0), (0, 1), ... , (0, 9)] -> Đây là viền trái
+         * [(0, 9), (1, 9), ..., (9, 9)] -> Đây là viền dưới
+         * [(9, 0), (9, 1), ... , (9, 9)] -> Đâu là viền phải
+         * Trừ đi 4 viên bị trùng là (0, 0) (9, 0) (0, 9) (9, 9) đi
+         * 
+         * @returns {Array<Brick>} mảng chứa các đối tượng brick được khởi tạo
+         */
+        createSurroundBricks() {
+            let result = [];
+            // Tạo viền trên
+            for(let i = 0; i < COLUMN; i++) {
+                const point = new Point(i, 0)
+                const brick = new Brick(point);
+                result.push(brick);
+            }
+            // Tạo viền trái, chạy từ 1 -> loại bỏ điểm (0, 0)
+            for(let i = 1; i < ROW; i++) {
+                const point = new Point(0, i);
+                const brick = new Brick(point);
+                result.push(brick);
+            }
+
+            // Tạo viền dưới, chạy từ 1 -> loại bỏ điểm (0, 9)
+            for(let i = 1; i < COLUMN; i++) {
+                const point = new Point(i, COLUMN - 1);
+                const brick = new Brick(point);
+                result.push(brick);
+            }
+
+            // Tạo viền phải, chạy từ 1 -> 8, loại bỏ được điểm (0, 9) và (9, 9)
+            for(let i = 1; i < ROW - 1; i++) {
+                const point = new Point(ROW - 1, i);
+                const brick = new Brick(point);
+                result.push(brick);
+            }
+            return result;
+        }
+    }
+
+    /**
      * Lớp chịu trách nhiệm điều khiển chung trong trò chơi, đồng thời điểu khiển các thành phần khác
      * trong quá trình chơi
      */
     class Game {
-        constructor() {
+        /**
+         * Constructor truyền vào đối tượng game creator, tuỳ vào level người chơi chọn sẽ
+         * khởi tạo ra các đối tượng phù hợp
+         * @param {GameCreator} gameCreator 
+         */
+        constructor(gameCreator) {
             this.width = CANVAS_WIDTH;
             this.height = CANVAS_HEIGHT;
-            this.snake = null;
-            this.bait = null;
-            this.direction = null;
-            this.imageBitmapHolder = null;
-            this.turnPointHolder = null;
-        }
+            this.gameCreator = gameCreator;
+            this.isGameOver = false;
+            gameCreator.createGame();
 
-        init() {
-            this.snake = Snake.createNewSnake();
-            this.bait = new Bait(new Point(6, 3));
+            this.snake = gameCreator.getSnake();
+            this.bait = gameCreator.getBait();
+            this.bricks = gameCreator.getBricks();
             this.direction = Direction.getInstance();
             this.imageBitmapHolder = ImageBitmapHolder.getInstance();
             this.turnPointHolder = TurnPointHolder.getInstance();
@@ -736,52 +882,116 @@ $(document).ready(function () {
          * @param {HTMLCanvasElement} canvas 
          * Phương thức nhận vào một canvas element, sau đó lần lượt vẽ rắn, mồi trên phần tử canvas đó
          */
-        drawComponents(canvas) {
+        drawComponents() {
             const context = canvas.getContext('2d');
             context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-            // // Vẽ background
-            // const background = new Image(CANVAS_WIDTH, CANVAS_HEIGHT);
-            // background.src = 'https://th.bing.com/th/id/R.37716068933bae2f9b11ff90bc91b015?rik=tVu8QIDEj35%2ffQ&pid=ImgRaw&r=0';
-            // context.drawImage(background, 0, 0);
+            // // Test vẽ hình game over
+            // const point = new Point(0, 0);
+            // const spriteItem = new SpriteItem(point, Sprites.GAME_OVER);
+            // const imageBitmap = this.imageBitmapHolder.getBitmap(spriteItem.sprite);
+            // // context.drawImage(imageBitmap, 0, 0);
+            // context.drawImage(imageBitmap, spriteItem.point.x, spriteItem.point.y);
+
+            // Vẽ gạch
+            this.drawSpriteItems(this.bricks);
+
             // Vẽ mồi
-            const imageBitmap = this.imageBitmapHolder.getBitmap(this.bait.sprite);
-            const point = this.bait.point;
-            context.drawImage(imageBitmap, point.x * SPRITE_WIDTH, point.y * SPRITE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT);
+            this.drawSpriteItems(this.bait);
+
             // Vẽ rắn
-            this.snake.cells.forEach(cell => {
-                const imageBitmap = this.imageBitmapHolder.getBitmap(cell.sprite);
-                context.drawImage(imageBitmap, cell.point.x * SPRITE_WIDTH, cell.point.y * SPRITE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT);
-            });
+            this.drawSpriteItems(this.snake.cells);
+
 
         }
 
+        /**
+         * Phương thức dùng để draw một đối tượng SpriteItem
+         * @param {SpriteItem} item 
+         */
+        draw(item, isFullCanvas) {
+            const point = item.point;
+            const imageBitmap = this.imageBitmapHolder.getBitmap(item.sprite);
+            const context = canvas.getContext('2d');
+            if(isFullCanvas) {
+                context.drawImage(imageBitmap, point.x, point.y);
+            }
+            else {
+                context.drawImage(imageBitmap, point.x * SPRITE_WIDTH, point.y * SPRITE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT)
+            }
+        }
+
+        /**
+         * Phương thức dùng để vẽ các sprite item, nhận vào một mảng chứa các đối tượng SpriteItem
+         * lên canvas và có giới hạn width height
+         * bằng với hằng số SPRITE_WIDTH và SPRITE_HEIGHT
+         * @param {Array<SpriteItem>|SpriteItem} items Mảng chứa các sprite item
+         */
+        drawSpriteItems(items) {
+            if(Array.isArray(items)) {
+                items.forEach(item => {
+                    this.draw(item, false);
+                });
+            } else this.draw(items, false);
+        }
+
+        /**
+         * Phương thức nhận vào một mảng các sprite item
+         * Sau đó vẽ item đó lên với toạ độ cho trước và có width height bằng với
+         * hằng số CANVAS_WIDTH, CANVAS_HEIGHT
+         * @param {Array<SpriteItem>|SpriteItem} items 
+         */
+        drawSpriteItemsFull(items) {
+            this.draw(items, true);
+        }
+
+        clearCanvas() {
+            const context = canvas.getContext('2d');
+            context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        }
+
+        gameOver() {
+            this.clearCanvas();
+            const spriteItem = new SpriteItem(new Point(0, 0), Sprites.GAME_OVER)
+            this.drawSpriteItemsFull(spriteItem);
+            this.isGameOver = true;
+        }
+
         update() {
-            setInterval(() => {
+            let intervalId = setInterval(() => {
                 moveCounter++;
                 if (moveCounter >= (60 / MOVE_INTERVAL)) {
                     this.snake.move(this.direction.currentDirection);
+                    // Xử lý đầu rắn va chạm với mồi
                     Collision.check([this.snake.cells[0]], [this.bait], () => {
                         this.snake.grow();
 
-                        const baitX = Util.randomNumber(10);
-                        const baitY = Util.randomNumber(10);
+                        const baitX = Util.randomNumber(COLUMN);
+                        const baitY = Util.randomNumber(ROW);
                         const newBaitPoint = new Point(baitX, baitY);
                         this.bait.point = newBaitPoint;
                     });
 
+                    // Xử lý đầu rắn va chạm với body thì kết thúc game
                     const snakeBody = this.snake.cells.filter((cell, index) => index > 0);
                     Collision.check([this.snake.cells[0]], snakeBody, () => {
-                        alert('GAME OVER');
-                        this.snake.cells = [];
+                        this.gameOver();
+                        clearInterval(intervalId);
+                    });
+
+                    // Xử lý đầu rắn va chạm với các viên gạch thì kết thúc game
+                    Collision.check([this.snake.cells[0]], this.bricks, () => {
+                        this.gameOver();
+                        clearInterval(intervalId);
                     });
 
                     moveCounter = 0;
                 }
-                this.drawComponents(canvas);
+
+                if(!this.isGameOver)
+                    this.drawComponents();
             }, INTERVAL);
         }
-
         controlListener() {
             const _this = this;
             $(document).on('keyup', function (e) {
@@ -825,11 +1035,10 @@ $(document).ready(function () {
         }
 
         start() {
-            this.init();
             this.controlListener();
             this.update();
         }
     }
 
-    new Game().start();
+    new Game(new SecondLevelCreator()).start();
 });
