@@ -64,6 +64,8 @@ $(document).ready(function () {
 
         /**
          * Phương thức dùng để random ngẫu nhiên từ 0 -> bound
+         * Phương thức này cần xử lý sao cho điểm được random phải là một điểm trống chưa được
+         * sử dụng....
          * @param {Number} bound 
          * @returns {Number} số được random
          */
@@ -181,24 +183,10 @@ $(document).ready(function () {
          * Tải tất cả các sprite và biến nó thành đối tượng bitmap
          */
         async loadBitmaps() {
-            this.bitmapObj = {
-                [Sprites.APPLE]: await createImageBitmap(await Util.createImageBlob(Sprites.APPLE)),
-                [Sprites.BRICK]: await createImageBitmap(await Util.createImageBlob(Sprites.BRICK)),
-                [Sprites.BODY_HORIZONTAL]: await createImageBitmap(await Util.createImageBlob(Sprites.BODY_HORIZONTAL)),
-                [Sprites.BODY_VERTICAL]: await createImageBitmap(await Util.createImageBlob(Sprites.BODY_VERTICAL)),
-                [Sprites.BODY_BOTTOMLEFT]: await createImageBitmap(await Util.createImageBlob(Sprites.BODY_BOTTOMLEFT)),
-                [Sprites.BODY_BOTTOMRIGHT]: await createImageBitmap(await Util.createImageBlob(Sprites.BODY_BOTTOMRIGHT)),
-                [Sprites.BODY_TOPLEFT]: await createImageBitmap(await Util.createImageBlob(Sprites.BODY_TOPLEFT)),
-                [Sprites.BODY_TOPRIGHT]: await createImageBitmap(await Util.createImageBlob(Sprites.BODY_TOPRIGHT)),
-                [Sprites.HEAD_DOWN]: await createImageBitmap(await Util.createImageBlob(Sprites.HEAD_DOWN)),
-                [Sprites.HEAD_UP]: await createImageBitmap(await Util.createImageBlob(Sprites.HEAD_UP)),
-                [Sprites.HEAD_LEFT]: await createImageBitmap(await Util.createImageBlob(Sprites.HEAD_LEFT)),
-                [Sprites.HEAD_RIGHT]: await createImageBitmap(await Util.createImageBlob(Sprites.HEAD_RIGHT)),
-                [Sprites.TAIL_DOWN]: await createImageBitmap(await Util.createImageBlob(Sprites.TAIL_DOWN)),
-                [Sprites.TAIL_UP]: await createImageBitmap(await Util.createImageBlob(Sprites.TAIL_UP)),
-                [Sprites.TAIL_LEFT]: await createImageBitmap(await Util.createImageBlob(Sprites.TAIL_LEFT)),
-                [Sprites.TAIL_RIGHT]: await createImageBitmap(await Util.createImageBlob(Sprites.TAIL_RIGHT)),
-                [Sprites.GAME_OVER]: await createImageBitmap(await Util.createImageBlob(Sprites.GAME_OVER)),
+            this.bitmapObj = {};
+            for (const key in Sprites) {
+                const sprite = Sprites[key];
+                this.bitmapObj[sprite] = await createImageBitmap(await Util.createImageBlob(sprite));
             }
         }
 
@@ -267,6 +255,7 @@ $(document).ready(function () {
          * @param {Function} doIfCollision gọi phương thức doIfCollision sau khi va chạm
          */
         static check(items1, items2, doIfCollision) {
+            if(!items1 || !items2) return;
             for (const item1 of items1) {
                 const point = item1.point;
                 for (const item2 of items2) {
@@ -822,33 +811,29 @@ $(document).ready(function () {
          * @returns {Array<Brick>} mảng chứa các đối tượng brick được khởi tạo
          */
         createSurroundBricks() {
+            
+            /**
+             * Tạo các viên gạch tạo thành biên của khung chơi.
+             * @param {number} start - Giá trị bắt đầu của vòng lặp.
+             * @param {number} end - Giá trị kết thúc của vòng lặp.
+             * @param {boolean} isVertical - Xác định xem biên có phải là dọc hay ngang.
+             * @param {number} fixedIndex - Chỉ số cố định của biên.
+             * @param {Array} result - Mảng chứa các viên gạch tạo thành biên.
+             */
+            function createBorder(start, end, isVertical, fixedIndex, result) {
+                for(let i = start; i < end; i++) {
+                    const point = isVertical ? new Point(fixedIndex, i) : new Point(i, fixedIndex);
+                    const brick = new Brick(point);
+                    result.push(brick);
+                }
+            }
+            
             let result = [];
-            // Tạo viền trên
-            for(let i = 0; i < COLUMN; i++) {
-                const point = new Point(i, 0)
-                const brick = new Brick(point);
-                result.push(brick);
-            }
-            // Tạo viền trái, chạy từ 1 -> loại bỏ điểm (0, 0)
-            for(let i = 1; i < ROW; i++) {
-                const point = new Point(0, i);
-                const brick = new Brick(point);
-                result.push(brick);
-            }
-
-            // Tạo viền dưới, chạy từ 1 -> loại bỏ điểm (0, 9)
-            for(let i = 1; i < COLUMN; i++) {
-                const point = new Point(i, COLUMN - 1);
-                const brick = new Brick(point);
-                result.push(brick);
-            }
-
-            // Tạo viền phải, chạy từ 1 -> 8, loại bỏ được điểm (0, 9) và (9, 9)
-            for(let i = 1; i < ROW - 1; i++) {
-                const point = new Point(ROW - 1, i);
-                const brick = new Brick(point);
-                result.push(brick);
-            }
+            createBorder(0, COLUMN, false, 0, result); // Tạo viền trên
+            createBorder(1, ROW, true, 0, result); // Tạo viền trái
+            createBorder(1, COLUMN, false, COLUMN - 1, result); // Tạo viền dưới
+            createBorder(1, ROW - 1, true, ROW - 1, result); // Tạo viền phải
+            
             return result;
         }
     }
@@ -909,11 +894,11 @@ $(document).ready(function () {
          * Phương thức dùng để draw một đối tượng SpriteItem
          * @param {SpriteItem} item 
          */
-        draw(item, isFullCanvas) {
+        draw(item, isFullSize) {
             const point = item.point;
             const imageBitmap = this.imageBitmapHolder.getBitmap(item.sprite);
             const context = canvas.getContext('2d');
-            if(isFullCanvas) {
+            if(isFullSize) {
                 context.drawImage(imageBitmap, point.x, point.y);
             }
             else {
@@ -928,11 +913,13 @@ $(document).ready(function () {
          * @param {Array<SpriteItem>|SpriteItem} items Mảng chứa các sprite item
          */
         drawSpriteItems(items) {
-            if(Array.isArray(items)) {
-                items.forEach(item => {
-                    this.draw(item, false);
-                });
-            } else this.draw(items, false);
+            if(items) {
+                if(Array.isArray(items)) {
+                    items.forEach(item => {
+                        this.draw(item, false);
+                    });
+                } else this.draw(items, false);
+            }
         }
 
         /**
