@@ -7,17 +7,20 @@ $(document).ready(function () {
 
     const CANVAS_WIDTH = canvas.width;
     const CANVAS_HEIGHT = canvas.height;
-    const SPRITE_WIDTH = 50;
-    const SPRITE_HEIGHT = 50;
-    const ROW = CANVAS_WIDTH / SPRITE_WIDTH;
-    const COLUMN = CANVAS_HEIGHT / SPRITE_HEIGHT;
-    const MOVE_INTERVAL = 10;
+    const SPRITE_WIDTH = 40;
+    const SPRITE_HEIGHT = 53;
+    const COLUMN = CANVAS_WIDTH / SPRITE_WIDTH;
+    const ROW = CANVAS_HEIGHT / SPRITE_HEIGHT;
+
     const FPS = 45;
     const INTERVAL = 1000 / FPS;
+    let velocity = 10;
     let moveCounter = 0;
 
     const Sprites = {
         APPLE: './img/apple.png',
+        CHERRY: './img/cherry.png',
+        GRAPE: './img/grape.jpg',
         BRICK: './img/brick.png',
 
         BODY_HORIZONTAL: './img/body_horizontal.png',
@@ -165,11 +168,31 @@ $(document).ready(function () {
                     return Sprites.BODY_VERTICAL
             }
         }
+
+        /**
+         * Phương thức Random một điểm không nằm trong bất kỳ điểm nào trong mảng
+         * spriteItems
+         * @param {Array<SpriteItem>} spriteItems 
+         */
+        static secureRandomPoint(spriteItems) {
+            let x = Util.randomNumber(COLUMN);
+            let y = Util.randomNumber(ROW);
+            let point = new Point(x, y);
+            while (spriteItems.some(item => item.point.equal(point))) {
+                x = Util.randomNumber(COLUMN);
+                y = Util.randomNumber(ROW);
+                point = new Point(x, y);
+            }
+            return point;
+        }
     }
 
     /**
      * Class dùng để lưu trữ sẵn đối tượng bitmap để không phải đọc file nhiều lần 
      * làm tăng hiệu năng thực thi
+     */
+    /**
+     * Lớp ImageBitmapHolder lưu trữ và quản lý các đối tượng bitmap.
      */
     class ImageBitmapHolder {
         static instance;
@@ -219,8 +242,12 @@ $(document).ready(function () {
          * @param {string} sprite đường dẫn của sprite ảnh
          */
         constructor(point, sprite) {
-            this.sprite = sprite;
             this.point = point;
+            this.sprite = sprite;
+            /**
+             * @type {boolean}
+             */
+            this.isDisplay = true;
         }
 
 
@@ -241,6 +268,10 @@ $(document).ready(function () {
         setPoint(point) {
             this.point = point;
         }
+
+        setDisplay(isDisplay) {
+            this.isDisplay = isDisplay;
+        }
     }
 
 
@@ -256,15 +287,16 @@ $(document).ready(function () {
          */
         static check(items1, items2, doIfCollision) {
             if(!items1 || !items2) return;
-            for (const item1 of items1) {
-                const point = item1.point;
-                for (const item2 of items2) {
-                    if (point.equal(item2.point)) {
-                        doIfCollision();
-                        return; // Thoát khỏi phương thức check ngay lập tức sau khi phát hiện va chạm
-                    }
-                }
-            }
+
+            const isTrigger = items1.some(item1 => {
+                const point1 = item1.point;
+                return items2.some(item2 => {
+                    const point2 = item2.point;
+                    return (point2) ? point2.equal(point1) : false;
+                });
+            });
+
+            if(isTrigger) doIfCollision();
         }
     }
 
@@ -397,7 +429,9 @@ $(document).ready(function () {
          * @returns {boolean}
          */
         equal(that) {
-            return this.x == that.x && this.y == that.y;
+            if(that && that instanceof Point)
+                return this.x == that.x && this.y == that.y;
+            return false;
         }
 
         toString() {
@@ -676,23 +710,49 @@ $(document).ready(function () {
         }
     }
 
+
+    /**
+     * Lớp Factory dùng để tạo ra các đối tượng Bait mới
+     */
+    class BaitFactory {
+        static createNewBait(sprite, spriteItems) {
+            let instance = null;
+            switch (sprite) {
+                case Sprites.APPLE:
+                    instance = new Apple(new Point(-1, -1));
+                    break;
+                case Sprites.GRAPE:
+                    instance = new Grape(new Point(-1, -1));
+                    break;
+            }
+            instance.changePoint(spriteItems);
+            return instance;
+        }
+    }
+
     /**
      * Lớp dùng để biểu diễn mồi trong game
      */
     class Bait extends SpriteItem {
+        constructor(point, sprite) {
+            super(point, sprite);
+        }
+
+        changePoint(spriteItems) {
+            const point = Util.secureRandomPoint(spriteItems);
+            this.point = point;
+        }
+    }
+
+    class Apple extends Bait {
         constructor(point) {
             super(point, Sprites.APPLE);
         }
+    }
 
-        /**
-         * Tạo đối tượng Bait mới cho game
-         * @returns {Bait}
-         */
-        static createNewBait() {
-            const x = Util.randomNumber(COLUMN);
-            const y = Util.randomNumber(ROW)
-            const point = new Point(x, y);
-            return new Bait(point);
+    class Grape extends Bait {
+        constructor(point) {
+            super(point, Sprites.GRAPE);
         }
     }
 
@@ -708,9 +768,9 @@ $(document).ready(function () {
     /**
      * @abstract
      * @class
-     * Lớp GameCreator có abstract method là createGame để tạo game theo level
+     * Lớp LevelCreator có abstract method là createGame để tạo game theo level
      */
-    class GameCreator {
+    class LevelCreator {
         constructor() {
             /**
              * @type {Snake}
@@ -723,7 +783,12 @@ $(document).ready(function () {
             /**
              * @type {Array<Brick>}
              */
-            this.bricks = null;
+            this.bricks = [];
+            
+            /**
+             * @type {Number} đếm số lần ăn mồi
+             */
+            this.count = 0;
         }
         /**
          * @abstract
@@ -753,33 +818,99 @@ $(document).ready(function () {
         getBricks() {
             return this.bricks;
         }
+
+        /**
+         * @abstract
+         * @returns {boolean} trả về true nếu phương thức cần được override nếu Collision và ngược lại
+         */
+        notify() { return false; } // Mặc định không cần override
+
+        /**
+         * Phương thức update được gọi nếu notify trả về true
+         * @param {Game} game instance của class game
+         * @return {void}
+         */
+        update(game) {
+            this.count++;
+        }
     }
 
     /**
-     * Level 1 chỉ cần tạo rắn và tạo mồi, rắn di chuyển xuyên map
+     * Level 1 chỉ cần tạo rắn và tạo mồi, rắn di chuyển xuyên map, qua màn khi ăn đủ 10 trái táo
      */
-    class FirstLevelCreator extends GameCreator {
+    class FirstLevelCreator extends LevelCreator {
         /**
          * @override
          */
         createGame() {
             this.snake = Snake.createNewSnake();
-            this.bait = Bait.createNewBait();
+            this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells]);
         }
+        
 
     }
 
     /**
-     * Level 2 cần tạo các viên gạch bao xung quanh game
+     * Level 2 không vật cản như level 1, rắn cần ăn đủ 20 trái táo và 5 trái nho
      */
-    class SecondLevelCreator extends GameCreator {
+    class SecondLevelCreator extends LevelCreator {
+
+        constructor() {
+            super();
+            this.isApple = true;
+        }
+        /**
+         * @override
+         */
+        createGame() {
+            this.snake = Snake.createNewSnake();
+            this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells]);
+        }
+
+        /**
+         * @override
+         */
+        notify() { return true;}
+
+        /**
+         * @override
+         * @param {Game} game 
+         */
+        update(game) {
+            super.update(game);
+
+            if(game.bait instanceof Apple) {
+                game.snake.grow();
+            }
+
+            if(game.bait instanceof Grape) {
+                velocity *= 1.2;
+            }           
+
+            game.bait.changePoint([...game.snake.cells]);
+            if (this.count == 10) {
+                this.isApple = false;
+                this.count = 0;
+                game.bait = BaitFactory.createNewBait(Sprites.GRAPE, [...game.snake.cells]);
+
+            } else {
+                game.bait = BaitFactory.createNewBait(Sprites.APPLE, [...game.snake.cells]);
+            }
+
+        }
+    }
+
+    /**
+     * Level 3 cần tạo các viên gạch bao xung quanh game, qua màn khi ăn đủ 20 trái táo
+     */
+    class ThirdLevelCreator extends LevelCreator {
         /**
          * @override
          */
         createGame() {
             this.snake = this.createNewSnake();
-            this.bait = Bait.createNewBait();
             this.bricks = this.createSurroundBricks();
+            this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells, ...this.bricks]);
         }
 
         /**
@@ -831,8 +962,8 @@ $(document).ready(function () {
             let result = [];
             createBorder(0, COLUMN, false, 0, result); // Tạo viền trên
             createBorder(1, ROW, true, 0, result); // Tạo viền trái
-            createBorder(1, COLUMN, false, COLUMN - 1, result); // Tạo viền dưới
-            createBorder(1, ROW - 1, true, ROW - 1, result); // Tạo viền phải
+            createBorder(1, COLUMN - 1, false, ROW - 1, result); // Tạo viền dưới
+            createBorder(1, ROW, true, COLUMN - 1, result); // Tạo viền phải
             
             return result;
         }
@@ -846,7 +977,7 @@ $(document).ready(function () {
         /**
          * Constructor truyền vào đối tượng game creator, tuỳ vào level người chơi chọn sẽ
          * khởi tạo ra các đối tượng phù hợp
-         * @param {GameCreator} gameCreator 
+         * @param {LevelCreator} gameCreator 
          */
         constructor(gameCreator) {
             this.width = CANVAS_WIDTH;
@@ -870,13 +1001,6 @@ $(document).ready(function () {
         drawComponents() {
             const context = canvas.getContext('2d');
             context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-            // // Test vẽ hình game over
-            // const point = new Point(0, 0);
-            // const spriteItem = new SpriteItem(point, Sprites.GAME_OVER);
-            // const imageBitmap = this.imageBitmapHolder.getBitmap(spriteItem.sprite);
-            // // context.drawImage(imageBitmap, 0, 0);
-            // context.drawImage(imageBitmap, spriteItem.point.x, spriteItem.point.y);
 
             // Vẽ gạch
             this.drawSpriteItems(this.bricks);
@@ -932,6 +1056,17 @@ $(document).ready(function () {
             this.draw(items, true);
         }
 
+        /**
+         * 
+         * @param {SpriteItem} item 
+         */
+        drawFullCanvas(item) {
+            const point = item.point;
+            const imageBitmap = this.imageBitmapHolder.getBitmap(item.sprite);
+            const context = canvas.getContext('2d');
+            context.drawImage(imageBitmap, point.x, point.y, CANVAS_WIDTH, CANVAS_HEIGHT);
+        }
+
         clearCanvas() {
             const context = canvas.getContext('2d');
             context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -947,16 +1082,25 @@ $(document).ready(function () {
         update() {
             let intervalId = setInterval(() => {
                 moveCounter++;
-                if (moveCounter >= (60 / MOVE_INTERVAL)) {
+                if (moveCounter >= (60 / velocity)) {
                     this.snake.move(this.direction.currentDirection);
+
                     // Xử lý đầu rắn va chạm với mồi
                     Collision.check([this.snake.cells[0]], [this.bait], () => {
-                        this.snake.grow();
+                        let isNeedToOverride = this.gameCreator.notify();
+                        if(!isNeedToOverride) {
+                            if(this.bait instanceof Apple) {
+                                this.snake.grow();
+                                this.bait.changePoint([...this.snake.cells, ...this.bricks]);
+                            }
 
-                        const baitX = Util.randomNumber(COLUMN);
-                        const baitY = Util.randomNumber(ROW);
-                        const newBaitPoint = new Point(baitX, baitY);
-                        this.bait.point = newBaitPoint;
+                            if(this.bait instanceof Grape) {
+                                alert('COLLISION TRIGGERED')
+                            }
+                            
+                        } else {
+                            this.gameCreator.update(this);
+                        }
                     });
 
                     // Xử lý đầu rắn va chạm với body thì kết thúc game

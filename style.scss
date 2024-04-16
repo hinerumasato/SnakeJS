@@ -1,5 +1,5 @@
 body {
-    background-color: aqua;
+    background-color: #646464;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -8,6 +8,9 @@ body {
 
 canvas {
     background-color: #FFF;
+    // background-image: url('./img/background.png');
+    // background-size: auto;
+    // background-position: center;
     // width: 350px;
     // height: 350px;
 }
