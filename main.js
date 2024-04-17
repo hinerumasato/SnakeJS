@@ -987,6 +987,14 @@ $(document).ready(function () {
 
     class FourthLevelCreator extends LevelCreator {
         /**
+         * Sử dụng lại SecondLevelCreator và ThirdLevelCreator
+         */
+        constructor() {
+            super();
+            this.secondLevelCreator = new SecondLevelCreator();
+            this.thirdLevelCreator = new ThirdLevelCreator();
+        }
+        /**
          * @override
          */
         createGame() {
@@ -1000,11 +1008,11 @@ $(document).ready(function () {
          * @returns {Snake}
          */
         createNewSnake() {
-            const thirdLevelCreator = new ThirdLevelCreator();
-            return thirdLevelCreator.createNewSnake();
+            return this.thirdLevelCreator.createNewSnake();
         }
 
         /**
+         * Phương thức này vừa tạo tường bao quanh, vừa tạo thêm tường bên trong map
          * @returns {Array<Brick>}
          */
         createBricks() {
@@ -1016,6 +1024,15 @@ $(document).ready(function () {
                 bricks.push(newBrickBottom);
             }
             return bricks;
+        }
+
+        /**
+         * Sử dụng lại phương thức của SecondLevelCreator
+         * @param {Game} game 
+         * @override
+         */
+        checkBaitCollision(game) {
+            this.secondLevelCreator.checkBaitCollision(game);
         }
     }
 
