@@ -820,18 +820,52 @@ $(document).ready(function () {
         }
 
         /**
-         * @abstract
-         * @returns {boolean} trả về true nếu phương thức cần được override nếu Collision và ngược lại
+         * 
+         * @param {Game} game 
          */
-        notify() { return false; } // Mặc định không cần override
+        checkBaitCollision(game) {
+            Collision.check([game.snake.cells[0]], [game.bait], () => {
+                if(game.bait instanceof Apple) {
+                    game.snake.grow();
+                    this.count++;
+                }
+                
+                if(game.bait instanceof Grape) {
+                    velocity *= 1.2;
+                    game.bait = BaitFactory.createNewBait(Sprites.APPLE, [...game.snake.cells, ...game.bricks]);
+                }   
+                game.bait.changePoint([...game.snake.cells, ...game.bricks]);
+            });
+        }
 
+        checkBodyCollision(game) {
+            const snakeBody = game.snake.cells.filter((cell, index) => index > 0);
+            Collision.check([game.snake.cells[0]], snakeBody, () => {
+                game.gameOver();
+                clearInterval(game.intervalId);
+            });
+        }
+
+        checkBrickCollision(game) {
+            Collision.check([game.snake.cells[0]], game.bricks, () => {
+                game.gameOver();
+                clearInterval(game.intervalId);
+            });
+        }
+        
         /**
-         * Phương thức update được gọi nếu notify trả về true
-         * @param {Game} game instance của class game
-         * @return {void}
+         * Kiểm tra va chạm của các sprite items trong game
+         * @param {Game} game 
          */
-        update(game) {
-            this.count++;
+        checkCollision(game) {
+            // Xử lý đầu rắn va chạm với mồi
+            this.checkBaitCollision(game);
+
+            // Xử lý đầu rắn va chạm với body thì kết thúc game
+            this.checkBodyCollision(game);
+
+            // Xử lý đầu rắn va chạm với các viên gạch thì kết thúc game
+            this.checkBrickCollision(game);
         }
     }
 
@@ -869,34 +903,14 @@ $(document).ready(function () {
 
         /**
          * @override
-         */
-        notify() { return true;}
-
-        /**
-         * @override
          * @param {Game} game 
          */
-        update(game) {
-            super.update(game);
-
-            if(game.bait instanceof Apple) {
-                game.snake.grow();
-            }
-
-            if(game.bait instanceof Grape) {
-                velocity *= 1.2;
-            }           
-
-            game.bait.changePoint([...game.snake.cells]);
-            if (this.count == 10) {
-                this.isApple = false;
+        checkBaitCollision(game) {
+            super.checkBaitCollision(game);
+            if(this.count == 10) {
                 this.count = 0;
                 game.bait = BaitFactory.createNewBait(Sprites.GRAPE, [...game.snake.cells]);
-
-            } else {
-                game.bait = BaitFactory.createNewBait(Sprites.APPLE, [...game.snake.cells]);
             }
-
         }
     }
 
@@ -977,18 +991,26 @@ $(document).ready(function () {
         /**
          * Constructor truyền vào đối tượng game creator, tuỳ vào level người chơi chọn sẽ
          * khởi tạo ra các đối tượng phù hợp
-         * @param {LevelCreator} gameCreator 
+         * @param {LevelCreator} levelCreator 
          */
-        constructor(gameCreator) {
+        constructor(levelCreator) {
             this.width = CANVAS_WIDTH;
             this.height = CANVAS_HEIGHT;
-            this.gameCreator = gameCreator;
+            
+            this.levelCreator = levelCreator;
+            /**
+             * @type {Boolean}
+             */
             this.isGameOver = false;
-            gameCreator.createGame();
+            /**
+             * @type {Number}
+             */
+            this.intervalId = 0;
+            levelCreator.createGame();
 
-            this.snake = gameCreator.getSnake();
-            this.bait = gameCreator.getBait();
-            this.bricks = gameCreator.getBricks();
+            this.snake = levelCreator.getSnake();
+            this.bait = levelCreator.getBait();
+            this.bricks = levelCreator.getBricks();
             this.direction = Direction.getInstance();
             this.imageBitmapHolder = ImageBitmapHolder.getInstance();
             this.turnPointHolder = TurnPointHolder.getInstance();
@@ -1080,42 +1102,11 @@ $(document).ready(function () {
         }
 
         update() {
-            let intervalId = setInterval(() => {
+            this.intervalId = setInterval(() => {
                 moveCounter++;
                 if (moveCounter >= (60 / velocity)) {
                     this.snake.move(this.direction.currentDirection);
-
-                    // Xử lý đầu rắn va chạm với mồi
-                    Collision.check([this.snake.cells[0]], [this.bait], () => {
-                        let isNeedToOverride = this.gameCreator.notify();
-                        if(!isNeedToOverride) {
-                            if(this.bait instanceof Apple) {
-                                this.snake.grow();
-                                this.bait.changePoint([...this.snake.cells, ...this.bricks]);
-                            }
-
-                            if(this.bait instanceof Grape) {
-                                alert('COLLISION TRIGGERED')
-                            }
-                            
-                        } else {
-                            this.gameCreator.update(this);
-                        }
-                    });
-
-                    // Xử lý đầu rắn va chạm với body thì kết thúc game
-                    const snakeBody = this.snake.cells.filter((cell, index) => index > 0);
-                    Collision.check([this.snake.cells[0]], snakeBody, () => {
-                        this.gameOver();
-                        clearInterval(intervalId);
-                    });
-
-                    // Xử lý đầu rắn va chạm với các viên gạch thì kết thúc game
-                    Collision.check([this.snake.cells[0]], this.bricks, () => {
-                        this.gameOver();
-                        clearInterval(intervalId);
-                    });
-
+                    this.levelCreator.checkCollision(this);
                     moveCounter = 0;
                 }
 
@@ -1138,25 +1129,26 @@ $(document).ready(function () {
                     _this.turnPointHolder.store(turnPointItem);
                 }
 
+                const head = _this.snake.cells[0];
                 switch (e.key) {
                     case 'ArrowRight':
                         _this.direction.setDirection(Direction.RIGHT);
-                        _this.snake.cells[0].sprite = Util.mapDirectionToTurnSprite(_this.direction);
+                        head.sprite = Util.mapDirectionToTurnSprite(_this.direction);
                         storeNewTurnPointItem();
                         break;
                     case 'ArrowDown':
                         _this.direction.setDirection(Direction.DOWN);
-                        _this.snake.cells[0].sprite = Util.mapDirectionToTurnSprite(_this.direction);
+                        head.sprite = Util.mapDirectionToTurnSprite(_this.direction);
                         storeNewTurnPointItem();
                         break;
                     case 'ArrowLeft':
                         _this.direction.setDirection(Direction.LEFT);
-                        _this.snake.cells[0].sprite = Util.mapDirectionToTurnSprite(_this.direction);
+                        head.sprite = Util.mapDirectionToTurnSprite(_this.direction);
                         storeNewTurnPointItem();
                         break;
                     case 'ArrowUp':
                         _this.direction.setDirection(Direction.UP);
-                        _this.snake.cells[0].sprite = Util.mapDirectionToTurnSprite(_this.direction);
+                        head.sprite = Util.mapDirectionToTurnSprite(_this.direction);
                         storeNewTurnPointItem();
                         break;
                     default:
@@ -1171,5 +1163,5 @@ $(document).ready(function () {
         }
     }
 
-    new Game(new SecondLevelCreator()).start();
+    new Game(new ThirdLevelCreator()).start();
 });
