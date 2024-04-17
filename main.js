@@ -187,6 +187,46 @@ $(document).ready(function () {
         }
     }
 
+    class BrickFactory {
+        /**
+         * Phương thức dùng để tạo ra các viên gạch bao quanh map
+         * Tạo bao quanh map cần tạo ra các brick có toạ độ: 
+         * [(0, 0), (1, 0), ... , (9, 0)] -> Đây là viền trên
+         * [(0, 0), (0, 1), ... , (0, 9)] -> Đây là viền trái
+         * [(0, 9), (1, 9), ..., (9, 9)] -> Đây là viền dưới
+         * [(9, 0), (9, 1), ... , (9, 9)] -> Đâu là viền phải
+         * Trừ đi 4 viên bị trùng là (0, 0) (9, 0) (0, 9) (9, 9) đi
+         * 
+         * @returns {Array<Brick>} mảng chứa các đối tượng brick được khởi tạo
+         */
+        static createSurroundBricks() {
+            
+            /**
+             * Tạo các viên gạch tạo thành biên của khung chơi.
+             * @param {number} start - Giá trị bắt đầu của vòng lặp.
+             * @param {number} end - Giá trị kết thúc của vòng lặp.
+             * @param {boolean} isVertical - Xác định xem biên có phải là dọc hay ngang.
+             * @param {number} fixedIndex - Chỉ số cố định của biên.
+             * @param {Array} result - Mảng chứa các viên gạch tạo thành biên.
+             */
+            function createBorder(start, end, isVertical, fixedIndex, result) {
+                for(let i = start; i < end; i++) {
+                    const point = isVertical ? new Point(fixedIndex, i) : new Point(i, fixedIndex);
+                    const brick = new Brick(point);
+                    result.push(brick);
+                }
+            }
+            
+            let result = [];
+            createBorder(0, COLUMN, false, 0, result); // Tạo viền trên
+            createBorder(1, ROW, true, 0, result); // Tạo viền trái
+            createBorder(1, COLUMN - 1, false, ROW - 1, result); // Tạo viền dưới
+            createBorder(1, ROW, true, COLUMN - 1, result); // Tạo viền phải
+            
+            return result;
+        }
+    }
+
     /**
      * Class dùng để lưu trữ sẵn đối tượng bitmap để không phải đọc file nhiều lần 
      * làm tăng hiệu năng thực thi
@@ -923,7 +963,7 @@ $(document).ready(function () {
          */
         createGame() {
             this.snake = this.createNewSnake();
-            this.bricks = this.createSurroundBricks();
+            this.bricks = BrickFactory.createSurroundBricks();
             this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells, ...this.bricks]);
         }
 
@@ -943,43 +983,39 @@ $(document).ready(function () {
             this.snake.cells = newCells;
             return this.snake;
         }
+    }
+
+    class FourthLevelCreator extends LevelCreator {
+        /**
+         * @override
+         */
+        createGame() {
+            this.snake = this.createNewSnake();
+            this.bricks = this.createBricks();
+            this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells, ...this.bricks]);
+        }
 
         /**
-         * Phương thức dùng để tạo ra các viên gạch bao quanh map
-         * Tạo bao quanh map cần tạo ra các brick có toạ độ: 
-         * [(0, 0), (1, 0), ... , (9, 0)] -> Đây là viền trên
-         * [(0, 0), (0, 1), ... , (0, 9)] -> Đây là viền trái
-         * [(0, 9), (1, 9), ..., (9, 9)] -> Đây là viền dưới
-         * [(9, 0), (9, 1), ... , (9, 9)] -> Đâu là viền phải
-         * Trừ đi 4 viên bị trùng là (0, 0) (9, 0) (0, 9) (9, 9) đi
-         * 
-         * @returns {Array<Brick>} mảng chứa các đối tượng brick được khởi tạo
+         * Sử dụng lại phương thức của ThirdLevelCreator
+         * @returns {Snake}
          */
-        createSurroundBricks() {
-            
-            /**
-             * Tạo các viên gạch tạo thành biên của khung chơi.
-             * @param {number} start - Giá trị bắt đầu của vòng lặp.
-             * @param {number} end - Giá trị kết thúc của vòng lặp.
-             * @param {boolean} isVertical - Xác định xem biên có phải là dọc hay ngang.
-             * @param {number} fixedIndex - Chỉ số cố định của biên.
-             * @param {Array} result - Mảng chứa các viên gạch tạo thành biên.
-             */
-            function createBorder(start, end, isVertical, fixedIndex, result) {
-                for(let i = start; i < end; i++) {
-                    const point = isVertical ? new Point(fixedIndex, i) : new Point(i, fixedIndex);
-                    const brick = new Brick(point);
-                    result.push(brick);
-                }
+        createNewSnake() {
+            const thirdLevelCreator = new ThirdLevelCreator();
+            return thirdLevelCreator.createNewSnake();
+        }
+
+        /**
+         * @returns {Array<Brick>}
+         */
+        createBricks() {
+            const bricks = BrickFactory.createSurroundBricks();
+            for(let i = 3; i < COLUMN - 3; i++) {
+                const newBrickTop = new Brick(new Point(i, 3));
+                const newBrickBottom = new Brick(new Point(i, ROW - 4));
+                bricks.push(newBrickTop);
+                bricks.push(newBrickBottom);
             }
-            
-            let result = [];
-            createBorder(0, COLUMN, false, 0, result); // Tạo viền trên
-            createBorder(1, ROW, true, 0, result); // Tạo viền trái
-            createBorder(1, COLUMN - 1, false, ROW - 1, result); // Tạo viền dưới
-            createBorder(1, ROW, true, COLUMN - 1, result); // Tạo viền phải
-            
-            return result;
+            return bricks;
         }
     }
 
@@ -1163,5 +1199,5 @@ $(document).ready(function () {
         }
     }
 
-    new Game(new ThirdLevelCreator()).start();
+    new Game(new FourthLevelCreator()).start();
 });
