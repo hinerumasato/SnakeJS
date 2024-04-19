@@ -1064,6 +1064,10 @@ $(document).ready(function () {
         }
     }
 
+    /**
+     * Level 5 tạo các viên gạch theo dạng lưới, cứ sau mỗi n giây nhất định thì mồi sẽ biến mất
+     * buộc người chơi phải nhớ vị trí mồi 
+     */
     class FifthLevelCreator extends LevelCreator {
         constructor() {
             super();
