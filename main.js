@@ -187,6 +187,9 @@ $(document).ready(function () {
         }
     }
 
+    /**
+     * Factory Design Pattern xử lý tạo các viên gạch
+     */
     class BrickFactory {
         /**
          * Phương thức dùng để tạo ra các viên gạch bao quanh map
@@ -223,6 +226,34 @@ $(document).ready(function () {
             createBorder(1, COLUMN - 1, false, ROW - 1, result); // Tạo viền dưới
             createBorder(1, ROW, true, COLUMN - 1, result); // Tạo viền phải
             
+            return result;
+        }
+
+        /**
+         * Tạo viên gạch trên một hàng nhất định và có độ dài nhất định
+         * @param {Number} rowPosition 
+         * @param {Number} columnStart 
+         * @param {Number} columnEnd 
+         * @returns {Array<Brick>}
+         */
+        static createStraightLineBricks(rowPosition, columnStart, columnEnd) {
+            const result = [];
+            for(let i = columnStart; i < columnEnd; i++) {
+                const brick = new Brick(new Point(i, rowPosition));
+                result.push(brick);
+            }
+            return result;
+        }
+
+        static createGridBricks() {
+            const result = [];
+            for(let i = 0; i < ROW - 2; i += 2) {
+                for(let j = 0; j < COLUMN - 2; j += 2) {
+                    const point = new Point(j, i);
+                    const brick = new Brick(point);
+                    result.push(brick);
+                }
+            }
             return result;
         }
     }
@@ -1016,13 +1047,10 @@ $(document).ready(function () {
          * @returns {Array<Brick>}
          */
         createBricks() {
-            const bricks = BrickFactory.createSurroundBricks();
-            for(let i = 3; i < COLUMN - 3; i++) {
-                const newBrickTop = new Brick(new Point(i, 3));
-                const newBrickBottom = new Brick(new Point(i, ROW - 4));
-                bricks.push(newBrickTop);
-                bricks.push(newBrickBottom);
-            }
+            const surroundBricks = BrickFactory.createSurroundBricks();
+            const topLineBricks = BrickFactory.createStraightLineBricks(3, 3, COLUMN - 3);
+            const bottomLineBricks = BrickFactory.createStraightLineBricks(ROW - 4, 3, COLUMN - 3);
+            const bricks = surroundBricks.concat(topLineBricks).concat(bottomLineBricks);
             return bricks;
         }
 
@@ -1033,6 +1061,68 @@ $(document).ready(function () {
          */
         checkBaitCollision(game) {
             this.secondLevelCreator.checkBaitCollision(game);
+        }
+    }
+
+    class FifthLevelCreator extends LevelCreator {
+        constructor() {
+            super();
+            this.thirdLevelCreator = new ThirdLevelCreator();
+            this.dissapearTime = 1500;
+            this.hideInterval = this.handleHideBait();
+        }
+        /**
+         * @override
+         */
+        createGame() {
+            this.snake = this.createNewSnake();
+            this.bricks = this.createBricks();
+            this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells, ...this.bricks]);
+        }
+
+        /**
+         * @returns {Snake}
+         */
+        createNewSnake() {
+            return this.thirdLevelCreator.createNewSnake();
+        }
+
+        /**
+         * @returns {Array<Brick>}
+         */
+        createBricks() {
+            const surroundBricks = BrickFactory.createSurroundBricks();
+            const gridBricks = BrickFactory.createGridBricks();
+            const bricks = surroundBricks.concat(gridBricks);
+            return bricks;
+        }
+
+        /**
+         * Ghi đè phương thức checkBaitCollision của LevelCreator, nếu ăn được mồi thì tạo mồi mới
+         * và thêm set interval cho mồi đó sau n giây thì biến mất
+         * @override
+         * @param {Game} game 
+         */
+        checkBaitCollision(game) {
+            Collision.check([game.snake.cells[0]], [game.bait], () => {
+                clearInterval(this.hideInterval);
+                game.snake.grow();
+                game.bait.changePoint([...game.snake.cells, ...game.bricks]);
+                if(!game.bait.isDisplay) {
+                    game.bait.setDisplay(true);
+                }
+
+                this.hideInterval = this.handleHideBait();
+            });
+        }
+        /**
+         * 
+         * @returns {Number} intervalId
+         */
+        handleHideBait() {
+            return setInterval(() => {
+                this.bait.setDisplay(false);
+            }, this.dissapearTime);
         }
     }
 
@@ -1094,14 +1184,16 @@ $(document).ready(function () {
          * @param {SpriteItem} item 
          */
         draw(item, isFullSize) {
-            const point = item.point;
-            const imageBitmap = this.imageBitmapHolder.getBitmap(item.sprite);
-            const context = canvas.getContext('2d');
-            if(isFullSize) {
-                context.drawImage(imageBitmap, point.x, point.y);
-            }
-            else {
-                context.drawImage(imageBitmap, point.x * SPRITE_WIDTH, point.y * SPRITE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT)
+            if(item.isDisplay) {
+                const point = item.point;
+                const imageBitmap = this.imageBitmapHolder.getBitmap(item.sprite);
+                const context = canvas.getContext('2d');
+                if(isFullSize) {
+                    context.drawImage(imageBitmap, point.x, point.y);
+                }
+                else {
+                    context.drawImage(imageBitmap, point.x * SPRITE_WIDTH, point.y * SPRITE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT)
+                }
             }
         }
 
@@ -1216,5 +1308,5 @@ $(document).ready(function () {
         }
     }
 
-    new Game(new FourthLevelCreator()).start();
+    new Game(new FifthLevelCreator()).start();
 });
