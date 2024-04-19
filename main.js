@@ -963,6 +963,7 @@ $(document).ready(function () {
         constructor() {
             super();
             this.isApple = true;
+            this.speedUp = 5;
         }
         /**
          * @override
@@ -978,7 +979,7 @@ $(document).ready(function () {
          */
         checkBaitCollision(game) {
             super.checkBaitCollision(game);
-            if(this.count == 10) {
+            if(this.count == this.speedUp) {
                 this.count = 0;
                 game.bait = BaitFactory.createNewBait(Sprites.GRAPE, [...game.snake.cells]);
             }
@@ -1312,5 +1313,5 @@ $(document).ready(function () {
         }
     }
 
-    new Game(new FifthLevelCreator()).start();
+    new Game(new SecondLevelCreator()).start();
 });
