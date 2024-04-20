@@ -21,7 +21,7 @@ $(document).ready(function () {
         APPLE: './img/apple.png',
         CHERRY: './img/cherry.png',
         GRAPE: './img/grape.jpg',
-        BRICK: './img/brick.png',
+        BRICK: './img/brick.jpg',
 
         BODY_HORIZONTAL: './img/body_horizontal.png',
         BODY_VERTICAL: './img/body_vertical.png',
@@ -46,7 +46,6 @@ $(document).ready(function () {
 
     const Constants = {
         INIT_LENGTH: 3, // Chiều dài ban đầu của rắn
-        VELOCITY: 0.5, // Tốc độ của rắn
     }
 
     /**
@@ -188,6 +187,49 @@ $(document).ready(function () {
     }
 
     /**
+     * Sử dụng observer design pattern để lắng nghe sự thay đổi dữ liệu
+     * Cụ thể là sự thay đổi vị trí, số lượng của mảng cherries
+     */
+    class SpriteItemObservable {
+        constructor() {
+            /**
+             * @type {Array<SpriteItemObserver>}
+             */
+            this.observers = [];
+        }
+
+        /**
+         * 
+         * @param {SpriteItemObserver} observer 
+         */
+        register(observer) {
+            this.observers.push(observer);
+        }
+        
+        notify() {
+            for(let observer of this.observers) {
+                if(this instanceof LevelCreator) {
+                    const levelCreator = this;
+                    observer.updateData(levelCreator.getSpriteItems());
+                }
+            }
+        }
+    }
+
+    class SpriteItemObserver {
+        /** 
+         * @param {Array<SpriteItem>} spriteItems 
+         */
+        updateData(spriteItems) {
+            console.log("UPDATE CALLED");
+            if(this instanceof Game) {
+                const game = this;
+                game.otherSpriteItems = spriteItems;
+            }
+        }
+    }
+
+    /**
      * Factory Design Pattern xử lý tạo các viên gạch
      */
     class BrickFactory {
@@ -251,6 +293,23 @@ $(document).ready(function () {
                 for(let j = 0; j < COLUMN - 2; j += 2) {
                     const point = new Point(j, i);
                     const brick = new Brick(point);
+                    result.push(brick);
+                }
+            }
+            return result;
+        }
+
+        /**
+         * Tạo tường full width và chừa một lối đi
+         * @param {Number} holePosition Vị trí lối đi
+         * @param {Number} row Vị trí hàng 
+         * @returns {Array<Brick>}
+         */
+        static createOneHoleWallBricks(holePosition, row) {
+            const result = [];
+            for(let i = 0; i < COLUMN; i++) {
+                if(i != holePosition) {
+                    const brick = new Brick(new Point(i, row));
                     result.push(brick);
                 }
             }
@@ -383,6 +442,21 @@ $(document).ready(function () {
         constructor() {
             this.currentDirection = Direction.RIGHT;
             this.oldDirection = null;
+            this.oppositeDirection = {
+                [Direction.UP]: Direction.DOWN,
+                [Direction.RIGHT]: Direction.LEFT,
+                [Direction.DOWN]: Direction.UP,
+                [Direction.LEFT]: Direction.RIGHT
+            }
+        }
+
+        /**
+         * 
+         * @param {Number} direction 
+         * @returns {Number} hướng đi ngược lại
+         */
+        static getOppositeDirection(direction) {
+            return this.getInstance().oppositeDirection[direction];
         }
 
         /**
@@ -404,6 +478,26 @@ $(document).ready(function () {
                 this.instance = new Direction();
             }
             return this.instance;
+        }
+
+        /**
+         * 
+         * @param {String} key 
+         * @returns {Number|null}
+         */
+        mapArrowKeyToDirection(key) {
+            switch (key) {
+                case 'ArrowUp':
+                    return Direction.UP;
+                case 'ArrowRight':
+                    return Direction.RIGHT;
+                case 'ArrowDown':
+                    return Direction.DOWN;
+                case 'ArrowLeft':
+                    return Direction.LEFT;
+                default:
+                    return null;
+            }
         }
     }
 
@@ -795,6 +889,9 @@ $(document).ready(function () {
                 case Sprites.GRAPE:
                     instance = new Grape(new Point(-1, -1));
                     break;
+                case Sprites.CHERRY:
+                    instance = new Cherry(new Point(-1, -1));
+                    break;
             }
             instance.changePoint(spriteItems);
             return instance;
@@ -827,6 +924,12 @@ $(document).ready(function () {
         }
     }
 
+    class Cherry extends Bait {
+        constructor(point) {
+            super(point, Sprites.CHERRY);
+        }
+    }
+
     /**
      * Lớp dùng để biểu diễn viên gạch (vật cản) trong game
      */
@@ -841,8 +944,9 @@ $(document).ready(function () {
      * @class
      * Lớp LevelCreator có abstract method là createGame để tạo game theo level
      */
-    class LevelCreator {
+    class LevelCreator extends SpriteItemObservable {
         constructor() {
+            super();
             /**
              * @type {Snake}
              */
@@ -890,22 +994,37 @@ $(document).ready(function () {
             return this.bricks;
         }
 
+        getSpriteItems() { return [] };
+
         /**
          * 
          * @param {Game} game 
          */
+        handleAppleCollision(game) {
+            game.snake.grow();
+            this.count++;
+        }
+
+        /**
+         * 
+         * @param {Game} game 
+         */
+        handleGrapeCollision(game) {
+            velocity *= 1.2;
+            game.bait = BaitFactory.createNewBait(Sprites.APPLE, [...game.snake.cells, ...game.bricks]);
+        }
+
         checkBaitCollision(game) {
             Collision.check([game.snake.cells[0]], [game.bait], () => {
                 if(game.bait instanceof Apple) {
-                    game.snake.grow();
-                    this.count++;
+                    this.handleAppleCollision(game);
                 }
                 
                 if(game.bait instanceof Grape) {
-                    velocity *= 1.2;
-                    game.bait = BaitFactory.createNewBait(Sprites.APPLE, [...game.snake.cells, ...game.bricks]);
-                }   
-                game.bait.changePoint([...game.snake.cells, ...game.bricks]);
+                    this.handleGrapeCollision(game);
+                }
+
+                game.bait.changePoint([...game.snake.cells, ...game.bricks, ...game.otherSpriteItems]);
             });
         }
 
@@ -981,7 +1100,7 @@ $(document).ready(function () {
             super.checkBaitCollision(game);
             if(this.count == this.speedUp) {
                 this.count = 0;
-                game.bait = BaitFactory.createNewBait(Sprites.GRAPE, [...game.snake.cells]);
+                game.bait = BaitFactory.createNewBait(Sprites.GRAPE, [...game.snake.cells, ...game.bricks]);
             }
         }
     }
@@ -1103,23 +1222,20 @@ $(document).ready(function () {
         }
 
         /**
-         * Ghi đè phương thức checkBaitCollision của LevelCreator, nếu ăn được mồi thì tạo mồi mới
+         * Ghi đè phương thức handleAppleCollision của LevelCreator, nếu ăn được mồi thì tạo mồi mới
          * và thêm set interval cho mồi đó sau n giây thì biến mất
          * @override
          * @param {Game} game 
          */
-        checkBaitCollision(game) {
-            Collision.check([game.snake.cells[0]], [game.bait], () => {
-                clearInterval(this.hideInterval);
-                game.snake.grow();
-                game.bait.changePoint([...game.snake.cells, ...game.bricks]);
-                if(!game.bait.isDisplay) {
-                    game.bait.setDisplay(true);
-                }
-
-                this.hideInterval = this.handleHideBait();
-            });
+        handleAppleCollision(game) {
+            super.handleAppleCollision(game);
+            if(!game.bait.isDisplay) {
+                game.bait.setDisplay(true);
+            }
+            clearInterval(this.hideInterval);
+            this.hideInterval = this.handleHideBait();
         }
+
         /**
          * 
          * @returns {Number} intervalId
@@ -1131,17 +1247,91 @@ $(document).ready(function () {
         }
     }
 
+    class SixthLevelCreator extends LevelCreator {
+        constructor() {
+            super();
+            this.thirdLevelCreator = new ThirdLevelCreator();
+            /**
+             * Số lượng thuốc độc
+             * @type {Number}
+             */
+            this.cherryNum = 5;
+            /**
+             * @type {Array<SpriteItem>}
+             */
+            this.cherries = [];
+        }
+        /**
+         * @override
+         */
+        createGame() {
+            this.snake = this.createNewSnake();
+            this.bricks = this.createBricks();
+            this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells, ...this.bricks]);
+            this.cherries = this.createCherries();
+        }
+
+        /**
+         * 
+         * @returns {Snake}
+         */
+        createNewSnake() {
+            return this.thirdLevelCreator.createNewSnake();
+        }
+
+        /**
+         * @returns {Array<Brick>}
+         */
+        createBricks() {
+            const surroundBricks = BrickFactory.createSurroundBricks();
+            const oneHoleBricks = BrickFactory.createOneHoleWallBricks(2, 3).concat(BrickFactory.createOneHoleWallBricks(COLUMN - 2, 6));
+            const bricks = surroundBricks.concat(oneHoleBricks);
+            return bricks;
+        }
+
+        /**
+         * @param {Array<Cherry>}
+         */
+        createCherries() {
+            const cherries = [];
+            for(let i = 0; i < this.cherryNum; i++) {
+                const cherry = BaitFactory.createNewBait(Sprites.CHERRY, [...this.snake.cells, ...this.bricks, this.bait, ...this.cherries]);
+                cherries.push(cherry);
+            }
+            return cherries;
+        }
+
+        /**
+         * @returns {Array<SpriteItem>}
+         */
+        getSpriteItems() {
+            return this.cherries;
+        }
+
+        /**
+         * @override
+         * @param {Game} game 
+         */
+        handleAppleCollision(game) {
+            super.handleAppleCollision(game);
+            this.cherries = this.createCherries();
+            // Thông báo sự thay đổi ở observer
+            this.notify();
+        }
+    }
+
     /**
      * Lớp chịu trách nhiệm điều khiển chung trong trò chơi, đồng thời điểu khiển các thành phần khác
      * trong quá trình chơi
      */
-    class Game {
+    class Game extends SpriteItemObserver {
         /**
          * Constructor truyền vào đối tượng game creator, tuỳ vào level người chơi chọn sẽ
          * khởi tạo ra các đối tượng phù hợp
          * @param {LevelCreator} levelCreator 
          */
         constructor(levelCreator) {
+            super();
             this.width = CANVAS_WIDTH;
             this.height = CANVAS_HEIGHT;
             
@@ -1155,6 +1345,8 @@ $(document).ready(function () {
              */
             this.intervalId = 0;
             levelCreator.createGame();
+            // Đăng ký connection cho observable và observer
+            levelCreator.register(this);
 
             this.snake = levelCreator.getSnake();
             this.bait = levelCreator.getBait();
@@ -1162,6 +1354,10 @@ $(document).ready(function () {
             this.direction = Direction.getInstance();
             this.imageBitmapHolder = ImageBitmapHolder.getInstance();
             this.turnPointHolder = TurnPointHolder.getInstance();
+            /**
+             * @type {Array<SpriteItem>}
+             */
+            this.otherSpriteItems = levelCreator.getSpriteItems();
         }
 
         /**
@@ -1171,6 +1367,7 @@ $(document).ready(function () {
         drawComponents() {
             const context = canvas.getContext('2d');
             context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            this.drawBackground();
 
             // Vẽ gạch
             this.drawSpriteItems(this.bricks);
@@ -1178,10 +1375,29 @@ $(document).ready(function () {
             // Vẽ mồi
             this.drawSpriteItems(this.bait);
 
+            // Vẽ các sprite item khác
+            this.drawSpriteItems(this.otherSpriteItems);
+
             // Vẽ rắn
             this.drawSpriteItems(this.snake.cells);
 
 
+        }
+
+        drawBackground() {
+            const context = canvas.getContext('2d');
+            for(let i = 0; i < ROW; i++) {
+                for(let j = 0; j < COLUMN; j++) {
+                    if(i % 2 == 0) {
+                        context.fillStyle = (j % 2 == 0) ? '#a2d149' : '#aad751';
+                    } 
+                    else {
+                        context.fillStyle = (j % 2 == 0) ? '#aad751' : '#a2d149';
+                    }
+                    context.fillRect(j * SPRITE_WIDTH, i * SPRITE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT);
+                }
+            }
+            
         }
 
         /**
@@ -1267,7 +1483,8 @@ $(document).ready(function () {
         controlListener() {
             const _this = this;
             $(document).on('keyup', function (e) {
-
+                // Dùng move counter để kiểm tra nếu chưa di chuyển thì không thay đổi hướng
+                const head = _this.snake.cells[0];
                 /**
                  * Phương thức dùng để tạo một đối tượng TurnPointItem mới khi người dùng
                  * rẽ hướng, sau đó lưu vào trong TurnPointHolder
@@ -1279,30 +1496,18 @@ $(document).ready(function () {
                     _this.turnPointHolder.store(turnPointItem);
                 }
 
-                const head = _this.snake.cells[0];
-                switch (e.key) {
-                    case 'ArrowRight':
-                        _this.direction.setDirection(Direction.RIGHT);
-                        head.sprite = Util.mapDirectionToTurnSprite(_this.direction);
-                        storeNewTurnPointItem();
-                        break;
-                    case 'ArrowDown':
-                        _this.direction.setDirection(Direction.DOWN);
-                        head.sprite = Util.mapDirectionToTurnSprite(_this.direction);
-                        storeNewTurnPointItem();
-                        break;
-                    case 'ArrowLeft':
-                        _this.direction.setDirection(Direction.LEFT);
-                        head.sprite = Util.mapDirectionToTurnSprite(_this.direction);
-                        storeNewTurnPointItem();
-                        break;
-                    case 'ArrowUp':
-                        _this.direction.setDirection(Direction.UP);
-                        head.sprite = Util.mapDirectionToTurnSprite(_this.direction);
-                        storeNewTurnPointItem();
-                        break;
-                    default:
-                        break;
+                if(e.key.includes('Arrow') && !this.isGameOver) {
+                    // Nếu chưa di chuyển thì không thay đổi hướng
+                    const directionMapped = _this.direction.mapArrowKeyToDirection(e.key);
+                    // Nếu hướng di chuyển trùng với hướng di chuyển hiện tại thì không thay đổi
+                    if(directionMapped == _this.direction.currentDirection) 
+                        return;
+                    // Nếu hướng di chuyển trái ngược với hướng di chuyển hiện tại thì không thay đổi
+                    if(directionMapped == Direction.getOppositeDirection(_this.direction.currentDirection))
+                        return;
+                    _this.direction.setDirection(directionMapped);
+                    head.sprite = Util.mapDirectionToTurnSprite(_this.direction);
+                    storeNewTurnPointItem();
                 }
             });
         }
@@ -1313,5 +1518,5 @@ $(document).ready(function () {
         }
     }
 
-    new Game(new SecondLevelCreator()).start();
+    new Game(new SixthLevelCreator()).start();
 });
