@@ -20,7 +20,7 @@ $(document).ready(function () {
     const Sprites = {
         APPLE: './img/apple.png',
         CHERRY: './img/cherry.png',
-        GRAPE: './img/grape.jpg',
+        GRAPE: './img/grape.png',
         BRICK: './img/brick.png',
 
         BODY_HORIZONTAL: './img/body_horizontal.png',
@@ -45,7 +45,7 @@ $(document).ready(function () {
     }
 
     const Constants = {
-        INIT_LENGTH: 3, // Chiều dài ban đầu của rắn
+        INIT_LENGTH: 6, // Chiều dài ban đầu của rắn
     }
 
     /**
@@ -73,6 +73,17 @@ $(document).ready(function () {
          */
         static randomNumber(bound) {
             return Math.floor(Math.random() * bound);
+        }
+
+        /**
+         * Kiểm tra đầu rắn đã đi khỏi điểm rẽ chưa
+         * @param {Cell} head 
+         * @param {TurnPointHolder} turnPointHolder 
+         * @returns 
+         */
+        static isLeftFromTurnPoint(head, turnPointHolder) {
+            const lastTurnPointItem = turnPointHolder.turnPointItems.last();
+            return lastTurnPointItem && lastTurnPointItem.point.equal(head.point)
         }
 
         /**
@@ -132,25 +143,19 @@ $(document).ready(function () {
         }
 
         /**
-         * Phương thức dùng để mapping từ direction sang sprite của đuôi rắn tương ứng
-         * @param {Direction} direction
-         * @returns {string} Sprite của đuôi
+         * 
+         * @param {Point} point 
+         * @param {Point} beforePoint 
+         * @returns 
          */
-        static mapDirectionToTail(direction) {
-            const oldDirection = direction.oldDirection;
-            const currentDirection = direction.currentDirection;
-
-            if (oldDirection) {
-                if ((oldDirection == Direction.LEFT || oldDirection == Direction.RIGHT) && currentDirection == Direction.DOWN)
-                    return Sprites.TAIL_UP;
-                if ((oldDirection == Direction.LEFT || oldDirection == Direction.RIGHT) && currentDirection == Direction.UP)
-                    return Sprites.TAIL_DOWN;
-                if ((oldDirection == Direction.UP || oldDirection == Direction.DOWN) && currentDirection == Direction.RIGHT)
-                    return Sprites.TAIL_LEFT;
-                if ((oldDirection == Direction.UP || oldDirection == Direction.DOWN) && currentDirection == Direction.LEFT)
-                    return Sprites.TAIL_RIGHT;
+        static mapBeforePointToTail(point, beforePoint) {
+            if (point.x == beforePoint.x) {
+                if (point.y > beforePoint.y) return Sprites.TAIL_RIGHT;
+                else return Sprites.TAIL_LEFT;
+            } else {
+                if (point.x > beforePoint.x) return Sprites.TAIL_DOWN;
+                else return Sprites.TAIL_UP;
             }
-            else return Sprites.TAIL_LEFT;
         }
 
         /**
@@ -448,6 +453,13 @@ $(document).ready(function () {
                 [Direction.DOWN]: Direction.UP,
                 [Direction.LEFT]: Direction.RIGHT
             }
+
+            this.buttonDirection = {
+                'ArrowUp': Direction.UP,
+                'ArrowRight': Direction.RIGHT,
+                'ArrowDown': Direction.DOWN,
+                'ArrowLeft': Direction.LEFT
+            }
         }
 
         /**
@@ -486,18 +498,7 @@ $(document).ready(function () {
          * @returns {Number|null}
          */
         mapArrowKeyToDirection(key) {
-            switch (key) {
-                case 'ArrowUp':
-                    return Direction.UP;
-                case 'ArrowRight':
-                    return Direction.RIGHT;
-                case 'ArrowDown':
-                    return Direction.DOWN;
-                case 'ArrowLeft':
-                    return Direction.LEFT;
-                default:
-                    return null;
-            }
+            return this.buttonDirection[key];
         }
     }
 
@@ -809,17 +810,27 @@ $(document).ready(function () {
                 const newPoint = beforeCellPoint;
                 const beforeCellSprite = beforeCell.sprite;
 
+                
                 // Kiểm tra đuôi đi qua
-                if (i == this.length - 1 && turnPointHolder.isContainPoint(cell.point)) {
-                    turnPointHolder.removeByPoint(cell.point);
-                    cell = new Cell(newPoint, Util.mapDirectionToTail(Direction.getInstance()));
+                if (i == this.length - 1) {
+                    if(turnPointHolder.isContainPoint(newPoint)) {
+                        turnPointHolder.removeByPoint(newPoint);
+                        cell = new Cell(newPoint, Util.mapBeforePointToTail(cell.point, beforeCellPoint));
+                    } else {
+                        cell = new Cell(newPoint, cell.sprite);
+                    }
+                } else {
+                    // Kiểm tra body rắn có nằm trong holder hay không
+                    if (turnPointHolder.isContainPoint(newPoint) && i != 1) {
+                        const item = turnPointHolder.getItemByPoint(newPoint);
+                        cell = new Cell(newPoint, item.sprite);
+                    }
+                    else if(i == 1) {
+                        cell = new Cell(newPoint, Util.mapDirectionToTurnSprite(Direction.getInstance()));
+                    }
+                    else cell = new Cell(newPoint, beforeCellSprite);
                 }
 
-                // Kiểm tra body rắn có nằm trong holder hay không
-                if (turnPointHolder.isContainPoint(newPoint) && i != 1) {
-                    const item = turnPointHolder.getItemByPoint(newPoint);
-                    cell = new Cell(newPoint, item.sprite);
-                } else cell = new Cell(newPoint, beforeCellSprite);
 
                 newCells[i] = cell;
             }
@@ -1508,8 +1519,7 @@ $(document).ready(function () {
 
                 if(e.key.includes('Arrow') && !this.isGameOver) {
                     // Nếu chưa di chuyển khỏi vị trí cũ thì không thay đổi hướng
-                    const lastTurnPointItem = _this.turnPointHolder.turnPointItems.last();
-                    if(lastTurnPointItem && lastTurnPointItem.point.equal(head.point))
+                    if(Util.isLeftFromTurnPoint(head, _this.turnPointHolder))
                         return;
 
                     const directionMapped = _this.direction.mapArrowKeyToDirection(e.key);
@@ -1520,7 +1530,6 @@ $(document).ready(function () {
                     if(directionMapped == Direction.getOppositeDirection(_this.direction.currentDirection))
                         return;
                     _this.direction.setDirection(directionMapped);
-                    head.sprite = Util.mapDirectionToTurnSprite(_this.direction);
                     storeNewTurnPointItem();
                 }
             });
@@ -1532,5 +1541,5 @@ $(document).ready(function () {
         }
     }
 
-    new Game(new FourthLevelCreator()).start();
+    new Game(new SecondLevelCreator()).start();
 });
