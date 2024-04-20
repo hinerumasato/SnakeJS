@@ -1308,6 +1308,16 @@ $(document).ready(function () {
             return this.cherries;
         }
 
+        checkBaitCollision(game) {
+            super.checkBaitCollision(game);
+
+            Collision.check([game.snake.cells[0]], this.cherries, () => {
+                // Đưa phần tử cherry bị ăn ra khỏi mảng cherries
+                this.cherries = this.cherries.filter(cherry => !game.snake.cells[0].point.equal(cherry.point));
+                this.notify();
+            });
+        }
+
         /**
          * @override
          * @param {Game} game 
