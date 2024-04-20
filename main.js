@@ -21,7 +21,7 @@ $(document).ready(function () {
         APPLE: './img/apple.png',
         CHERRY: './img/cherry.png',
         GRAPE: './img/grape.jpg',
-        BRICK: './img/brick.jpg',
+        BRICK: './img/brick.png',
 
         BODY_HORIZONTAL: './img/body_horizontal.png',
         BODY_VERTICAL: './img/body_vertical.png',
@@ -1507,7 +1507,11 @@ $(document).ready(function () {
                 }
 
                 if(e.key.includes('Arrow') && !this.isGameOver) {
-                    // Nếu chưa di chuyển thì không thay đổi hướng
+                    // Nếu chưa di chuyển khỏi vị trí cũ thì không thay đổi hướng
+                    const lastTurnPointItem = _this.turnPointHolder.turnPointItems.last();
+                    if(lastTurnPointItem && lastTurnPointItem.point.equal(head.point))
+                        return;
+
                     const directionMapped = _this.direction.mapArrowKeyToDirection(e.key);
                     // Nếu hướng di chuyển trùng với hướng di chuyển hiện tại thì không thay đổi
                     if(directionMapped == _this.direction.currentDirection) 
@@ -1528,5 +1532,5 @@ $(document).ready(function () {
         }
     }
 
-    new Game(new SixthLevelCreator()).start();
+    new Game(new FourthLevelCreator()).start();
 });

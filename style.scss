@@ -1,5 +1,7 @@
 body {
-    background-color: #646464;
+    //background-color: #646464;
+    background-image: url('https://th.bing.com/th/id/R.7842410d2600baddf5921a9219596ed8?rik=VP4XXRzRl7XSWg&pid=ImgRaw&r=0');
+    background-size: cover;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -8,6 +10,7 @@ body {
 
 canvas {
     background-color: #FFF;
+    opacity: .92;
     // background-image: url('./img/background.png');
     // background-size: auto;
     // background-position: center;
