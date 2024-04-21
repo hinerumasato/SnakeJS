@@ -48,6 +48,30 @@ $(document).ready(function () {
 
     let velocity = Constants.VELOCITY;
 
+    class InstanceHolder {
+        static instance = null;
+        constructor() {
+            /**
+             * @type {Game}
+             */
+            this.game = null;
+            /**
+             * @type {LevelCreator}
+             */
+            this.levelCreator = null;
+        }
+
+        /**
+         * 
+         * @returns {InstanceHolder}
+         */
+        static getInstance() {
+            if (this.instance == null)
+                this.instance = new InstanceHolder();
+            return this.instance;
+        }
+    }
+
     /**
      * Lớp Util cung cấp các phương thức chức năng chung để tái sử dụng trong quá trình phát triển
      */
@@ -1631,7 +1655,7 @@ $(document).ready(function () {
         }
         controlListener() {
             const _this = this;
-            $(document).on('keyup', function (e) {
+            $(document).on('keydown', function (e) {
                 // Dùng move counter để kiểm tra nếu chưa di chuyển thì không thay đổi hướng
                 const head = _this.snake.cells[0];
                 /**
@@ -1700,6 +1724,7 @@ $(document).ready(function () {
 
         startGame() {
             this.game = new Game(this.levelCreator);
+            InstanceHolder.getInstance().game = this.game;
             this.game.start();
             this.currentLevel = this.levelCreator.level;
             DOM.updateToUI(this.levelCreator);
@@ -1774,8 +1799,6 @@ $(document).ready(function () {
                     _this.backToMenu();
                 }
             });
-
-            
         }
 
         restartGameListener() {
@@ -1802,11 +1825,14 @@ $(document).ready(function () {
         static updateToUI(levelCreator) {
             const winGameCondition = levelCreator.getWinGameCondition(levelCreator.level);
             if(levelCreator.isWinGame()) {
+                DOM.stopGame(InstanceHolder.getInstance().game);
                 DOM.showPopup('winGamePopup');
             }
             $('#levelNum').text(levelCreator.level);
             $('#targetAppleNum').text(winGameCondition.apple);
+            $('#targetGrapeNum').text(winGameCondition.grape);
             $('#ateAppleNum').text(levelCreator.countApple);
+            $('#ateGrapeNum').text(levelCreator.countGrape);
         }
 
         /**
