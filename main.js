@@ -1679,6 +1679,9 @@ $(document).ready(function () {
         }
     }
 
+    /**
+     * Class dùng để quản lý DOM trong HTML
+     */
     class DOM {
         constructor() {
             /**
@@ -1804,6 +1807,14 @@ $(document).ready(function () {
             $('#levelNum').text(levelCreator.level);
             $('#targetAppleNum').text(winGameCondition.apple);
             $('#ateAppleNum').text(levelCreator.countApple);
+        }
+
+        /**
+         * 
+         * @param {Game} game 
+         */
+        static stopGame(game) {
+            game.stop();
         }
 
         listenEvents() {
