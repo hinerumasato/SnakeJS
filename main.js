@@ -1,3 +1,5 @@
+// 21130263_TranThangLoi_0879603547_DH21DTA
+
 Array.prototype.last = function () {
     return this[this.length - 1];
 }
