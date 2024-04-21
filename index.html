@@ -68,8 +68,13 @@
                 <div class="level__wrapper">
                     <div><span>Level: <span id="levelNum">1</span></span></div>
 
-                    <div class="game-header__back-to-menu-btn">
-                        <a id="back-to-menu" class="btn blue">Quay lại Menu</a>
+                    <div class="game-header__level-wrapper">
+                        <div class="game-header__back-to-menu-btn">
+                            <a id="back-to-menu" class="btn blue">Quay lại Menu</a>
+                        </div>
+                        <div class="game-header__show-rule-popup-btn">
+                            <a id="back-to-menu" class="btn orange">Luật chơi màn này</a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -102,6 +107,16 @@
                         <a class="btn cancel popup__back-to-menu">Quay về Menu chính</a>
                     </div>
                     <button class="popup__close-btn">&times</button>
+                </div>
+            </div>
+
+            <div class="popup" id="rulePopup">
+                <div class="popup__content animate__animated animate__bounceIn">
+                    <h2>Luật chơi</h2>
+                    <p class="rule__content">
+                        
+                    </p>
+                    <a class="btn blue popup__replay">Tôi đã hiếu</a>
                 </div>
             </div>
 

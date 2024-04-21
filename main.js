@@ -16,6 +16,20 @@ $(document).ready(function () {
     const INTERVAL = 1000 / FPS;
     let moveCounter = 0;
 
+    const Audios = {
+        APPLE_EAT: './audio/snake-eat.mp3',
+        GRAPE_EAT: './audio/snake-eat-grape.mp3',
+        HISS: './audio/snake-hiss.mp3',
+        WIN: './audio/win-game.mp3',
+        GAME_OVER: './audio/gameover.mp3',
+        BUTTON_CLICK: './audio/button-click.mp3',
+    };
+
+    const AudioInstances = {};
+    for (const audio in Audios) {
+        AudioInstances[Audios[audio]] = new Audio(Audios[audio]);
+    }
+
     const Sprites = {
         APPLE: './img/apple.png',
         CHERRY: './img/cherry.png',
@@ -43,7 +57,7 @@ $(document).ready(function () {
 
     const Constants = {
         INIT_LENGTH: 3, // Chiều dài ban đầu của rắn
-        VELOCITY: 10, // Vận tốc di chuyển của rắn
+        VELOCITY: 7, // Vận tốc di chuyển của rắn
     }
 
     let velocity = Constants.VELOCITY;
@@ -240,10 +254,10 @@ $(document).ready(function () {
         register(observer) {
             this.observers.push(observer);
         }
-        
+
         notify() {
-            for(let observer of this.observers) {
-                if(this instanceof LevelCreator) {
+            for (let observer of this.observers) {
+                if (this instanceof LevelCreator) {
                     const levelCreator = this;
                     observer.updateData(levelCreator.getSpriteItems());
                 }
@@ -257,7 +271,7 @@ $(document).ready(function () {
          */
         updateData(spriteItems) {
             console.log("UPDATE CALLED");
-            if(this instanceof Game) {
+            if (this instanceof Game) {
                 const game = this;
                 game.otherSpriteItems = spriteItems;
             }
@@ -280,7 +294,7 @@ $(document).ready(function () {
          * @returns {Array<Brick>} mảng chứa các đối tượng brick được khởi tạo
          */
         static createSurroundBricks() {
-            
+
             /**
              * Tạo các viên gạch tạo thành biên của khung chơi.
              * @param {number} start - Giá trị bắt đầu của vòng lặp.
@@ -290,19 +304,19 @@ $(document).ready(function () {
              * @param {Array} result - Mảng chứa các viên gạch tạo thành biên.
              */
             function createBorder(start, end, isVertical, fixedIndex, result) {
-                for(let i = start; i < end; i++) {
+                for (let i = start; i < end; i++) {
                     const point = isVertical ? new Point(fixedIndex, i) : new Point(i, fixedIndex);
                     const brick = new Brick(point);
                     result.push(brick);
                 }
             }
-            
+
             let result = [];
             createBorder(0, COLUMN, false, 0, result); // Tạo viền trên
             createBorder(1, ROW, true, 0, result); // Tạo viền trái
             createBorder(1, COLUMN - 1, false, ROW - 1, result); // Tạo viền dưới
             createBorder(1, ROW, true, COLUMN - 1, result); // Tạo viền phải
-            
+
             return result;
         }
 
@@ -315,7 +329,7 @@ $(document).ready(function () {
          */
         static createStraightLineBricks(rowPosition, columnStart, columnEnd) {
             const result = [];
-            for(let i = columnStart; i < columnEnd; i++) {
+            for (let i = columnStart; i < columnEnd; i++) {
                 const brick = new Brick(new Point(i, rowPosition));
                 result.push(brick);
             }
@@ -333,8 +347,8 @@ $(document).ready(function () {
 
         static createGridBricks() {
             const result = [];
-            for(let i = 0; i < ROW - 2; i += 2) {
-                for(let j = 0; j < COLUMN - 2; j += 2) {
+            for (let i = 0; i < ROW - 2; i += 2) {
+                for (let j = 0; j < COLUMN - 2; j += 2) {
                     const point = new Point(j, i);
                     const brick = new Brick(point);
                     result.push(brick);
@@ -351,8 +365,8 @@ $(document).ready(function () {
          */
         static createOneHoleWallBricks(holePosition, row) {
             const result = [];
-            for(let i = 0; i < COLUMN; i++) {
-                if(i != holePosition) {
+            for (let i = 0; i < COLUMN; i++) {
+                if (i != holePosition) {
                     const brick = new Brick(new Point(i, row));
                     result.push(brick);
                 }
@@ -464,7 +478,7 @@ $(document).ready(function () {
          * @param {Function} doIfCollision gọi phương thức doIfCollision sau khi va chạm
          */
         static check(items1, items2, doIfCollision) {
-            if(!items1 || !items2) return;
+            if (!items1 || !items2) return;
 
             const isTrigger = items1.some(item1 => {
                 const point1 = item1.point;
@@ -474,7 +488,7 @@ $(document).ready(function () {
                 });
             });
 
-            if(isTrigger) doIfCollision();
+            if (isTrigger) doIfCollision();
         }
     }
 
@@ -656,7 +670,7 @@ $(document).ready(function () {
          * @returns {boolean}
          */
         equal(that) {
-            if(that && that instanceof Point)
+            if (that && that instanceof Point)
                 return this.x == that.x && this.y == that.y;
             return false;
         }
@@ -886,7 +900,7 @@ $(document).ready(function () {
                     const item = turnPointHolder.getItemByPoint(newPoint);
                     cell = new Cell(newPoint, item.sprite);
                 }
-                else if(i == 1) {
+                else if (i == 1) {
                     cell = new Cell(newPoint, Util.mapDirectionToTurnSprite(Direction.getInstance()));
                 }
                 else cell = new Cell(newPoint, beforeCellSprite);
@@ -1029,7 +1043,7 @@ $(document).ready(function () {
              * @type {Array<Brick>}
              */
             this.bricks = [];
-            
+
             /**
              * @type {Number} đếm số lần ăn táo
              */
@@ -1096,6 +1110,7 @@ $(document).ready(function () {
             game.snake.grow();
             this.countApple++;
             DOM.updateToUI(this);
+            AudioUtil.playAudio(Audios.APPLE_EAT);
         }
 
         /**
@@ -1107,15 +1122,16 @@ $(document).ready(function () {
             game.bait = BaitFactory.createNewBait(Sprites.APPLE, [...game.snake.cells, ...game.bricks]);
             this.countGrape++;
             DOM.updateToUI(this);
+            AudioUtil.playAudio(Audios.GRAPE_EAT);
         }
 
         checkBaitCollision(game) {
             Collision.check([game.snake.cells[0]], [game.bait], () => {
-                if(game.bait instanceof Apple) {
+                if (game.bait instanceof Apple) {
                     this.handleAppleCollision(game);
                 }
-                
-                if(game.bait instanceof Grape) {
+
+                if (game.bait instanceof Grape) {
                     this.handleGrapeCollision(game);
                 }
 
@@ -1135,7 +1151,7 @@ $(document).ready(function () {
                 game.gameOver();
             });
         }
-        
+
         /**
          * Kiểm tra va chạm của các sprite items trong game
          * @param {Game} game 
@@ -1157,12 +1173,12 @@ $(document).ready(function () {
          */
         getWinGameConditions() {
             return {
-                1: {apple: 10, grape: 0},
-                2: {apple: 23, grape: 4},
-                3: {apple: 45, grape: 0},
-                4: {apple: 28, grape: 5},
-                5: {apple: 30, grape: 0},
-                6: {apple: 8, grape: 0},
+                1: { apple: 10, grape: 0 },
+                2: { apple: 23, grape: 4 },
+                3: { apple: 45, grape: 0 },
+                4: { apple: 28, grape: 5 },
+                5: { apple: 30, grape: 0 },
+                6: { apple: 8, grape: 0 },
             }
         }
 
@@ -1198,7 +1214,7 @@ $(document).ready(function () {
             this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells]);
             this.level = 1;
         }
-        
+
 
     }
 
@@ -1237,7 +1253,7 @@ $(document).ready(function () {
          */
         checkBaitCollision(game) {
             super.checkBaitCollision(game);
-            if(this.countAteApple == this.speedUp) {
+            if (this.countAteApple == this.speedUp) {
                 this.countAteApple = 0;
                 game.bait = BaitFactory.createNewBait(Sprites.GRAPE, [...game.snake.cells, ...game.bricks]);
             }
@@ -1256,6 +1272,7 @@ $(document).ready(function () {
          * @override
          */
         createGame() {
+            velocity = 10;
             this.snake = this.createNewSnake();
             this.bricks = BrickFactory.createSurroundBricks();
             this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells, ...this.bricks]);
@@ -1270,7 +1287,7 @@ $(document).ready(function () {
         createNewSnake() {
             this.snake = Snake.createNewSnake();
             const newCells = [...this.snake.cells];
-            for(let newCell of newCells) {
+            for (let newCell of newCells) {
                 const oldPoint = newCell.point;
                 const newPoint = new Point(oldPoint.x, oldPoint.y + 1);
                 newCell.point = newPoint;
@@ -1290,6 +1307,7 @@ $(document).ready(function () {
             this.thirdLevelCreator = new ThirdLevelCreator();
             this.speedUp = this.secondLevelCreator.speedUp;
             this.countAteApple = 0;
+            velocity = 10;
         }
         /**
          * @override
@@ -1334,7 +1352,7 @@ $(document).ready(function () {
          */
         checkBaitCollision(game) {
             super.checkBaitCollision(game);
-            if(this.countAteApple == this.speedUp) {
+            if (this.countAteApple == this.speedUp) {
                 this.countAteApple = 0;
                 game.bait = BaitFactory.createNewBait(Sprites.GRAPE, [...game.snake.cells, ...game.bricks]);
             }
@@ -1387,7 +1405,7 @@ $(document).ready(function () {
          */
         handleAppleCollision(game) {
             super.handleAppleCollision(game);
-            if(!game.bait.isDisplay) {
+            if (!game.bait.isDisplay) {
                 game.bait.setDisplay(true);
             }
             clearInterval(this.hideInterval);
@@ -1453,7 +1471,7 @@ $(document).ready(function () {
          */
         createCherries() {
             const cherries = [];
-            for(let i = 0; i < this.cherryNum; i++) {
+            for (let i = 0; i < this.cherryNum; i++) {
                 const cherry = BaitFactory.createNewBait(Sprites.CHERRY, [...this.snake.cells, ...this.bricks, this.bait, ...this.cherries]);
                 cherries.push(cherry);
             }
@@ -1477,8 +1495,8 @@ $(document).ready(function () {
                 Direction.getInstance().buttonDirection = Direction.getInstance().oppositeDirection;
                 setTimeout(() => {
                     Direction.getInstance().buttonDirection = Direction.getInstance().originalDirection;
-                }, 5000);   
-                
+                }, 5000);
+
                 this.notify();
             });
         }
@@ -1509,7 +1527,7 @@ $(document).ready(function () {
             super();
             this.width = CANVAS_WIDTH;
             this.height = CANVAS_HEIGHT;
-            
+
             this.levelCreator = levelCreator;
             /**
              * @type {Boolean}
@@ -1561,18 +1579,18 @@ $(document).ready(function () {
 
         drawBackground() {
             const context = canvas.getContext('2d');
-            for(let i = 0; i < ROW; i++) {
-                for(let j = 0; j < COLUMN; j++) {
-                    if(i % 2 == 0) {
+            for (let i = 0; i < ROW; i++) {
+                for (let j = 0; j < COLUMN; j++) {
+                    if (i % 2 == 0) {
                         context.fillStyle = (j % 2 == 0) ? '#a2d149' : '#aad751';
-                    } 
+                    }
                     else {
                         context.fillStyle = (j % 2 == 0) ? '#aad751' : '#a2d149';
                     }
                     context.fillRect(j * SPRITE_WIDTH, i * SPRITE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT);
                 }
             }
-            
+
         }
 
         /**
@@ -1580,11 +1598,11 @@ $(document).ready(function () {
          * @param {SpriteItem} item 
          */
         draw(item, isFullSize) {
-            if(item.isDisplay) {
+            if (item.isDisplay) {
                 const point = item.point;
                 const imageBitmap = this.imageBitmapHolder.getBitmap(item.sprite);
                 const context = canvas.getContext('2d');
-                if(isFullSize) {
+                if (isFullSize) {
                     context.drawImage(imageBitmap, point.x, point.y);
                 }
                 else {
@@ -1600,8 +1618,8 @@ $(document).ready(function () {
          * @param {Array<SpriteItem>|SpriteItem} items Mảng chứa các sprite item
          */
         drawSpriteItems(items) {
-            if(items) {
-                if(Array.isArray(items)) {
+            if (items) {
+                if (Array.isArray(items)) {
                     items.forEach(item => {
                         this.draw(item, false);
                     });
@@ -1638,6 +1656,7 @@ $(document).ready(function () {
         gameOver() {
             this.stop();
             DOM.showPopup('gameOverPopup');
+            AudioUtil.playAudio(Audios.GAME_OVER);
         }
 
         update() {
@@ -1649,7 +1668,7 @@ $(document).ready(function () {
                     moveCounter = 0;
                 }
 
-                if(!this.isGameOver)
+                if (!this.isGameOver)
                     this.drawComponents();
             }, INTERVAL);
         }
@@ -1669,18 +1688,17 @@ $(document).ready(function () {
                     _this.turnPointHolder.store(turnPointItem);
                 }
 
-                if(e.key.includes('Arrow') && !this.isGameOver) {
+                if (e.key.includes('Arrow') && !this.isGameOver) {
                     // Nếu chưa di chuyển khỏi vị trí cũ thì không thay đổi hướng
-                    if(Util.isLeftFromTurnPoint(head, _this.turnPointHolder))
+                    if (Util.isLeftFromTurnPoint(head, _this.turnPointHolder))
                         return;
 
                     const directionMapped = _this.direction.mapArrowKeyToDirection(e.key);
                     // Nếu hướng di chuyển trùng với hướng di chuyển hiện tại thì không thay đổi
-                    if(directionMapped == _this.direction.currentDirection) 
+                    if (directionMapped == _this.direction.currentDirection)
                         return;
                     // Nếu hướng di chuyển trái ngược với hướng di chuyển hiện tại thì không thay đổi
-                    if(directionMapped == Direction.getOppositeDirection(_this.direction.currentDirection)) {
-                        console.log();
+                    if (directionMapped == Direction.getOppositeDirection(_this.direction.currentDirection)) {
                         return;
                     }
                     _this.direction.setDirection(directionMapped);
@@ -1703,6 +1721,120 @@ $(document).ready(function () {
         }
     }
 
+    class RuleFactory {
+
+        /**
+         * 
+         * @param {LevelCreator} levelCreator 
+         * @returns {String} html
+         */
+        static getRuleContent(levelCreator) {
+            switch (levelCreator.level) {
+                case 1:
+                    return this.getFirstLevelRule(levelCreator);
+                case 2:
+                    return this.getSecondLevelRule(levelCreator);
+                case 3:
+                    return this.getThirdLevelRule(levelCreator);
+                case 4:
+                    return this.getFourthLevelRule(levelCreator);
+                case 5:
+                    return this.getFifthLevelRule(levelCreator);
+                case 6:
+                    return this.getSixthLevelRule(levelCreator);
+            }
+        }
+
+        static getFirstLevelRule(levelCreator) {
+            const apple = levelCreator.getWinGameCondition(levelCreator.level).apple;
+            return /*html*/`
+                    <h2>Level 1</h2>
+                    <ul>
+                        <li>Chưa có tường chắn</li>
+                        <li>Người chơi có thể tự do di chuyển trong game</li>
+                        <li>Người chơi cần ăn đủ ${apple} trái táo để qua màn</li>
+                        <li>Nếu rắn cắn trúng thân thì sẽ thua</li>
+                    </ul>
+                `
+        }
+
+        static getSecondLevelRule(levelCreator) {
+            const apple = levelCreator.getWinGameCondition(levelCreator.level).apple;
+            const grape = levelCreator.getWinGameCondition(levelCreator.level).grape;
+            return /*html*/`
+                    <h2>Level 2</h2>
+                    <ul>
+                        <li>Chưa có tường chắn</li>
+                        <li>Người chơi có thể tự do di chuyển trong game</li>
+                        <li>Người chơi cần ăn đủ ${apple} trái táo và ${grape} trái nho để qua màn</li>
+                        <li>Nếu rắn cắn trúng thân thì sẽ thua</li>
+                        <li>Sau mỗi ${levelCreator.speedUp} trái táo ăn được, tốc độ sẽ tăng lên</li>
+                    </ul>
+                `
+        }
+
+        static getThirdLevelRule(levelCreator) {
+            const apple = levelCreator.getWinGameCondition(levelCreator.level).apple;
+            return /*html*/`
+                    <h2>Level 3</h2>
+                    <ul>
+                        <li>Người chơi không thể đi xuyên qua tường</li>
+                        <li>Tốc độ mặc định của rắn được tăng lên một ít trong màn chơi này</li>
+                        <li>Người chơi cần ăn đủ ${apple} trái táo để qua màn</li>
+                        <li>Nếu rắn cắn trúng thân hoặc rắn đập đầu vào tường thì sẽ thua</li>
+                    </ul>
+                    <p>
+                        Vì màn chơi này không có nho cho nên tốc độ mặc định của rắn được tăng lên một ít trong màn chơi này.
+                        người chơi cần làm chủ được chiều dài của rắn trong màn này
+                    </p>
+                `
+        }
+
+        static getFourthLevelRule(levelCreator) {
+            const apple = levelCreator.getWinGameCondition(levelCreator.level).apple;
+            const grape = levelCreator.getWinGameCondition(levelCreator.level).grape;
+            return /*html*/`
+                    <h2>Level 4</h2>
+                    <ul>
+                        <li>Người chơi không thể đi xuyên qua tường</li>
+                        <li>Tốc độ mặc định của rắn được tăng lên một ít trong màn chơi này</li>
+                        <li>Người chơi cần ăn đủ ${apple} trái táo và ${grape} trái nho để qua màn</li>
+                        <li>Nếu rắn cắn trúng thân hoặc rắn đập đầu vào tường thì sẽ thua</li>
+                        <li>Sau mỗi ${this.levelCreator.speedUp} trái táo ăn được, tốc độ sẽ tăng lên</li>
+                    </ul>
+                `
+        }
+
+        static getFifthLevelRule(levelCreator) {
+            const apple = this.levelCreator.getWinGameCondition(levelCreator.level).apple;
+            return /*html*/`
+                    <h2>Level 5</h2>
+                    <ul>
+                        <li>Tốc độ mặc định của rắn được tăng lên một ít trong màn chơi này</li>
+                        <li>Người chơi cần ăn đủ ${apple} trái táo để qua màn</li>
+                        <li>Nếu rắn cắn trúng thân hoặc rắn đập đầu vào tường thì sẽ thua</li>
+                        <li>Mồi sẽ biến mất sau một khoảng thời gian nhất định</li>
+                    </ul>
+                `
+        }
+
+        static getSixthLevelRule(levelCreator) {
+            const apple = levelCreator.getWinGameCondition(levelCreator.level).apple;
+            return /*html*/`
+                    <h2>Level 6</h2>
+                    <ul>
+                        <li>Xuất hiện thức ăn mới là cherry</li>
+                        <li>Nếu ăn được thì điều khiển của người chơi sẽ bị ngược lại trong 5s</li>
+                        <li>Người chơi không thể đi xuyên qua tường</li>
+                        <li>Số lượng bức tường xuất hiện với mật độ dày đặc cản trở quá trình di chuyển</li>
+                        <li>Tốc độ mặc định của rắn được tăng lên một ít trong màn chơi này</li>
+                        <li>Người chơi cần ăn đủ ${apple} trái táo để qua màn</li>
+                        <li>Nếu rắn cắn trúng thân hoặc rắn đập đầu vào tường thì sẽ thua</li>
+                    </ul>
+                `
+        }
+
+    }
     /**
      * Class dùng để quản lý DOM trong HTML
      */
@@ -1723,12 +1855,19 @@ $(document).ready(function () {
         }
 
         startGame() {
+            // Ẩn tất cả các popup khi bắt đầu game
+            DOM.hidePopup('gameOverPopup');
+            DOM.hidePopup('winGamePopup');
+            DOM.hidePopup('rulePopup');
             this.game = new Game(this.levelCreator);
             InstanceHolder.getInstance().game = this.game;
             this.game.start();
             this.currentLevel = this.levelCreator.level;
             DOM.updateToUI(this.levelCreator);
             this.toggleGameMenu(false);
+            const ruleHTML = RuleFactory.getRuleContent(this.levelCreator);
+            console.log(ruleHTML);
+            $('.rule__content').html(ruleHTML);
         }
 
         restartGame() {
@@ -1744,7 +1883,7 @@ $(document).ready(function () {
         }
 
         toggleGameMenu(isGameMenu) {
-            if(isGameMenu) {
+            if (isGameMenu) {
                 $('.game-main').removeClass('active');
                 $('.game-menu').css('display', 'block');
             }
@@ -1758,12 +1897,20 @@ $(document).ready(function () {
             $('.popup__close-btn').on('click', function () {
                 // Select tới parent có class là popup và remove active class
                 $(this).parents('.popup').removeClass('active');
+                AudioUtil.playAudio(Audios.BUTTON_CLICK);
             });
         }
 
         showPopupListener() {
             $('#showInfoBtn').on('click', () => {
                 DOM.showPopup('infoPopup');
+                AudioUtil.playAudio(Audios.BUTTON_CLICK);
+            });
+
+            $('.game-header__show-rule-popup-btn').on('click', () => {
+                DOM.showPopup('rulePopup');
+                DOM.stopGame(InstanceHolder.getInstance().game);
+                AudioUtil.playAudio(Audios.BUTTON_CLICK);
             });
         }
 
@@ -1780,6 +1927,7 @@ $(document).ready(function () {
             $('.level').on('click', function () {
                 const level = parseInt($(this).attr('level'));
                 _this.levelCreator = LevelCreator.mappingLevelToInstance()[level];
+                AudioUtil.playAudio(Audios.BUTTON_CLICK);
                 _this.startGame();
             });
         }
@@ -1794,8 +1942,9 @@ $(document).ready(function () {
         backToMenuListener() {
             const _this = this;
             $('.game-header__back-to-menu-btn,.popup__back-to-menu').on('click', function () {
-                if(_this.game) {
+                if (_this.game) {
                     DOM.hidePopup('gameOverPopup');
+                    AudioUtil.playAudio(Audios.BUTTON_CLICK);
                     _this.backToMenu();
                 }
             });
@@ -1805,6 +1954,7 @@ $(document).ready(function () {
             const _this = this;
             $('.popup__replay').on('click', function () {
                 DOM.hidePopup('gameOverPopup');
+                AudioUtil.playAudio(Audios.BUTTON_CLICK);
                 _this.restartGame();
             });
         }
@@ -1814,6 +1964,7 @@ $(document).ready(function () {
             $('.popup__next-level').on('click', function () {
                 DOM.hidePopup('gameOverPopup');
                 DOM.hidePopup('winGamePopup');
+                AudioUtil.playAudio(Audios.BUTTON_CLICK);
                 _this.nextGame();
             });
         }
@@ -1824,9 +1975,10 @@ $(document).ready(function () {
          */
         static updateToUI(levelCreator) {
             const winGameCondition = levelCreator.getWinGameCondition(levelCreator.level);
-            if(levelCreator.isWinGame()) {
+            if (levelCreator.isWinGame()) {
                 DOM.stopGame(InstanceHolder.getInstance().game);
                 DOM.showPopup('winGamePopup');
+                AudioUtil.playAudio(Audios.WIN);
             }
             $('#levelNum').text(levelCreator.level);
             $('#targetAppleNum').text(winGameCondition.apple);
@@ -1850,6 +2002,14 @@ $(document).ready(function () {
             this.hidePopupListener();
             this.restartGameListener();
             this.nextLevelListener();
+        }
+    }
+
+    class AudioUtil {
+        static playAudio(audioLink) {
+            const audio = AudioInstances[audioLink];
+
+            audio.play();
         }
     }
     new DOM().listenEvents();

@@ -273,6 +273,22 @@ canvas {
   cursor: pointer;
 }
 
+#rulePopup .rule__content {
+  color: #000 !important;
+  text-align: left;
+  margin: 0 auto;
+}
+#rulePopup .rule__content li {
+  padding: 8px 0;
+}
+#rulePopup .rule__content p {
+  color: #000;
+}
+
 .popup.active {
+  display: flex;
+}
+
+.game-header__level-wrapper {
   display: flex;
 }/*# sourceMappingURL=style.css.map */
