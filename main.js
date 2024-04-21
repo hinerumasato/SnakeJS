@@ -1175,9 +1175,9 @@ $(document).ready(function () {
             return {
                 1: { apple: 10, grape: 0 },
                 2: { apple: 23, grape: 4 },
-                3: { apple: 45, grape: 0 },
+                3: { apple: 35, grape: 0 },
                 4: { apple: 28, grape: 5 },
-                5: { apple: 30, grape: 0 },
+                5: { apple: 35, grape: 0 },
                 6: { apple: 8, grape: 0 },
             }
         }
@@ -1436,6 +1436,8 @@ $(document).ready(function () {
              * @type {Array<SpriteItem>}
              */
             this.cherries = [];
+
+            this.leftTime = 0;
         }
         /**
          * @override
@@ -1800,13 +1802,13 @@ $(document).ready(function () {
                         <li>Tốc độ mặc định của rắn được tăng lên một ít trong màn chơi này</li>
                         <li>Người chơi cần ăn đủ ${apple} trái táo và ${grape} trái nho để qua màn</li>
                         <li>Nếu rắn cắn trúng thân hoặc rắn đập đầu vào tường thì sẽ thua</li>
-                        <li>Sau mỗi ${this.levelCreator.speedUp} trái táo ăn được, tốc độ sẽ tăng lên</li>
+                        <li>Sau mỗi ${levelCreator.speedUp} trái táo ăn được, tốc độ sẽ tăng lên</li>
                     </ul>
                 `
         }
 
         static getFifthLevelRule(levelCreator) {
-            const apple = this.levelCreator.getWinGameCondition(levelCreator.level).apple;
+            const apple = levelCreator.getWinGameCondition(levelCreator.level).apple;
             return /*html*/`
                     <h2>Level 5</h2>
                     <ul>
@@ -1825,6 +1827,7 @@ $(document).ready(function () {
                     <ul>
                         <li>Xuất hiện thức ăn mới là cherry</li>
                         <li>Nếu ăn được thì điều khiển của người chơi sẽ bị ngược lại trong 5s</li>
+                        <li>Nếu người chơi ăn táo thì số lượng cherry sẽ được khôi phục và hiển thị ngẫu nhiên</li>
                         <li>Người chơi không thể đi xuyên qua tường</li>
                         <li>Số lượng bức tường xuất hiện với mật độ dày đặc cản trở quá trình di chuyển</li>
                         <li>Tốc độ mặc định của rắn được tăng lên một ít trong màn chơi này</li>
@@ -1859,6 +1862,8 @@ $(document).ready(function () {
             DOM.hidePopup('gameOverPopup');
             DOM.hidePopup('winGamePopup');
             DOM.hidePopup('rulePopup');
+
+
             this.game = new Game(this.levelCreator);
             InstanceHolder.getInstance().game = this.game;
             this.game.start();
@@ -1866,7 +1871,6 @@ $(document).ready(function () {
             DOM.updateToUI(this.levelCreator);
             this.toggleGameMenu(false);
             const ruleHTML = RuleFactory.getRuleContent(this.levelCreator);
-            console.log(ruleHTML);
             $('.rule__content').html(ruleHTML);
         }
 
@@ -1901,6 +1905,12 @@ $(document).ready(function () {
             });
         }
 
+        showRulePopup() {
+            DOM.showPopup('rulePopup');
+            DOM.stopGame(InstanceHolder.getInstance().game);
+            AudioUtil.playAudio(Audios.BUTTON_CLICK);
+        }
+
         showPopupListener() {
             $('#showInfoBtn').on('click', () => {
                 DOM.showPopup('infoPopup');
@@ -1908,9 +1918,7 @@ $(document).ready(function () {
             });
 
             $('.game-header__show-rule-popup-btn').on('click', () => {
-                DOM.showPopup('rulePopup');
-                DOM.stopGame(InstanceHolder.getInstance().game);
-                AudioUtil.playAudio(Audios.BUTTON_CLICK);
+                this.showRulePopup();
             });
         }
 
@@ -1985,6 +1993,10 @@ $(document).ready(function () {
             $('#targetGrapeNum').text(winGameCondition.grape);
             $('#ateAppleNum').text(levelCreator.countApple);
             $('#ateGrapeNum').text(levelCreator.countGrape);
+
+            if(levelCreator instanceof SixthLevelCreator) {
+
+            }
         }
 
         /**

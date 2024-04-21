@@ -199,14 +199,25 @@ canvas {
 }
 
 .game-main {
+  opacity: 0.92;
+  width: -moz-fit-content;
+  width: fit-content;
+  margin: 16px auto;
   display: none;
 }
 
 .game-main.active {
+  display: block;
+}
+
+.game-header {
+  background-color: #008485;
+  padding: 8px;
+}
+
+.target_and_score {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
+  justify-content: space-between;
 }
 
 .game-header__score,
@@ -291,4 +302,10 @@ canvas {
 
 .game-header__level-wrapper {
   display: flex;
+  align-items: center;
+}
+
+.game-header__target__and__score {
+  display: flex;
+  justify-content: space-between;
 }/*# sourceMappingURL=style.css.map */
