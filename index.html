@@ -7,7 +7,10 @@
     <title>Snake</title>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"
         integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css' integrity='sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==' crossorigin='anonymous'/>
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css'
+        integrity='sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=='
+        crossorigin='anonymous' />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <link rel="stylesheet" href="style.css">
     <link rel="shortcut icon" href="./favicon.ico" type="image/x-icon">
 </head>
@@ -17,36 +20,93 @@
     <div id="wrapper" class="game-menu">
         <h1>Rắn Săn Mồi</h1>
         <h2>Chọn Level</h2>
-        <a id="level1" class="btn blue">Level 1</a>
-        <a id="level2" class="btn cancel">Level 2</a>
-        <a id="level3" class="btn grey">Level 3</a>
-        <a id="level4" class="btn orange">Level 4</a>
-        <a id="level5" class="btn green">Level 5</a>
-        <a id="level6" class="btn purple">Level 6</a>
+        <a id="level1" level="1" class="level btn blue">Level 1</a>
+        <a id="level2" level="2" class="level btn cancel">Level 2</a>
+        <a id="level3" level="3" class="level btn grey">Level 3</a>
+        <a id="level4" level="4" class="level btn orange">Level 4</a>
+        <a id="level5" level="5" class="level btn green">Level 5</a>
+        <a id="level6" level="6" class="level btn purple">Level 6</a>
 
-        <a class="btn blue" id="info">
-            <i style="display: inline;" class="fas fa-user"></i>
+        <a class="btn blue" id="showInfoBtn">
+            <i style="display: inline;" class="fa-solid fa-circle-info"></i>
             <span>Thông tin cá nhân</span>
         </a>
+
+        <div class="popup" id="infoPopup">
+            <div class="popup__content animate__animated animate__bounceIn">
+                <h2>Thông tin cá nhân</h2>
+                <div class="popup__content__info">
+                    <div class="popup__content__info__avatar"></div>
+                    <img src="./img/avatar.jpg" alt="">
+                </div>
+                <div class="popup__content__info__detail">
+                    <p><span>Họ và tên:</span> Trần Thắng Lợi</p>
+                    <p><span>Ngày sinh:</span> 09/08/2003</p>
+                    <p><span>Lớp:</span> DH21DTA</p>
+                    <p><span>Địa chỉ:</span> Nha Trang - Khánh Hoà</p>
+                    <p><span>Email:</span> thangloitran406@gmail.com</p>
+                </div>
+                <button class="popup__close-btn">&times</button>
+            </div>
+        </div>
+    </div>
     </div>
 
     <div class="game-main">
         <div class="game-header">
             <div class="game-header__target">
-                <span>Mục tiêu: 3 <img width="20px" height="20px" src="./img/apple.png" alt=""></span>
+                <span>Mục tiêu: <span id="targetAppleNum"></span> <img width="20px" height="20px" src="./img/apple.png" alt=""></span>
             </div>
 
             <div class="game-header__score">
-                <span>Đã ăn: 3 <img width="20px" height="20px" src="./img/apple.png" alt=""></span>
+                <span>Đã ăn: <span id="ateAppleNum"></span> <img width="20px" height="20px" src="./img/apple.png" alt=""></span>
             </div>
 
             <div class="game-header__level">
-                <span>Level: </span>
-                <span id="level">1</span>
+                <div class="level__wrapper">
+                    <div><span>Level: <span id="levelNum">1</span></span></div>
+
+                    <div class="game-header__back-to-menu-btn">
+                        <a id="back-to-menu" class="btn blue">Quay lại Menu</a>
+                    </div>
+                </div>
             </div>
-        <canvas width="800px" height="530px"></canvas>
-    </div>
-    <script src="./main.js"></script>
+
+            <div class="popup" id="gameOverPopup">
+                <div class="popup__content animate__animated animate__bounceIn">
+                    <h2>Game Over</h2>
+                    <!-- <img src="./img/gameover.png" alt="Game Over" width="100%"> -->
+                    <p>
+                        Bạn có muốn chơi lại? Nếu không thì có thể bỏ qua màn này và chơi
+                        tiếp màn tiếp theo
+                    </p>
+                    <div class="popup__actions">
+                        <a class="btn blue popup__replay">Chơi lại</a>
+                        <a class="btn green popup__next-level">Màn tiếp theo</a>
+                        <a class="btn cancel popup__back-to-menu">Quay về Menu chính</a>
+                    </div>
+                    <button class="popup__close-btn">&times</button>
+                </div>
+            </div>
+
+            <div class="popup" id="winGamePopup">
+                <div class="popup__content animate__animated animate__bounceIn">
+                    <h2>Chúc mừng bạn đã hoàn thành game</h2>
+                    <p>
+                        Vui lòng chơi tiếp ở màn sau hoặc quay lại menu chính
+                    </p>
+                    <div class="popup__actions">
+                        <a class="btn green popup__next-level">Màn tiếp theo</a>
+                        <a class="btn cancel popup__back-to-menu">Quay về Menu chính</a>
+                    </div>
+                    <button class="popup__close-btn">&times</button>
+                </div>
+            </div>
+
+            <canvas width="800px" height="530px"></canvas>
+        </div>
+
+        <script src="./main.js"></script>
 </body>
 
 </html>

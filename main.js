@@ -14,7 +14,6 @@ $(document).ready(function () {
 
     const FPS = 45;
     const INTERVAL = 1000 / FPS;
-    let velocity = 10;
     let moveCounter = 0;
 
     const Sprites = {
@@ -40,13 +39,14 @@ $(document).ready(function () {
         TAIL_UP: './img/tail_up.png',
         TAIL_LEFT: './img/tail_left.png',
         TAIL_RIGHT: './img/tail_right.png',
-
-        GAME_OVER: './img/gameover.jpg',
     }
 
     const Constants = {
         INIT_LENGTH: 3, // Chiều dài ban đầu của rắn
+        VELOCITY: 10, // Vận tốc di chuyển của rắn
     }
+
+    let velocity = Constants.VELOCITY;
 
     /**
      * Lớp Util cung cấp các phương thức chức năng chung để tái sử dụng trong quá trình phát triển
@@ -298,6 +298,15 @@ $(document).ready(function () {
             return result;
         }
 
+        /**
+         * Tạo viên gạch full cột
+         * @param {Number} rowPosition 
+         * @returns {Array<Brick>}
+         */
+        static createFullLineBricks(rowPosition) {
+            return this.createStraightLineBricks(rowPosition, 0, COLUMN);
+        }
+
         static createGridBricks() {
             const result = [];
             for(let i = 0; i < ROW - 2; i += 2) {
@@ -361,6 +370,10 @@ $(document).ready(function () {
             if (this.instance == null)
                 this.instance = new ImageBitmapHolder();
             return this.instance;
+        }
+
+        static destroyInstance() {
+            this.instance = null;
         }
 
         /**
@@ -453,19 +466,22 @@ $(document).ready(function () {
         constructor() {
             this.currentDirection = Direction.RIGHT;
             this.oldDirection = null;
-            this.oppositeDirection = {
-                [Direction.UP]: Direction.DOWN,
-                [Direction.RIGHT]: Direction.LEFT,
-                [Direction.DOWN]: Direction.UP,
-                [Direction.LEFT]: Direction.RIGHT
-            }
 
-            this.buttonDirection = {
+            this.originalDirection = {
                 'ArrowUp': Direction.UP,
                 'ArrowRight': Direction.RIGHT,
                 'ArrowDown': Direction.DOWN,
                 'ArrowLeft': Direction.LEFT
             }
+
+            this.oppositeDirection = {
+                'ArrowUp': Direction.DOWN,
+                'ArrowRight': Direction.LEFT,
+                'ArrowDown': Direction.UP,
+                'ArrowLeft': Direction.RIGHT
+            }
+
+            this.buttonDirection = this.originalDirection;
         }
 
         /**
@@ -474,7 +490,18 @@ $(document).ready(function () {
          * @returns {Number} hướng đi ngược lại
          */
         static getOppositeDirection(direction) {
-            return this.getInstance().oppositeDirection[direction];
+            switch (direction) {
+                case Direction.UP:
+                    return Direction.DOWN;
+                case Direction.RIGHT:
+                    return Direction.LEFT;
+                case Direction.DOWN:
+                    return Direction.UP;
+                case Direction.LEFT:
+                    return Direction.RIGHT;
+                default:
+                    return null;
+            }
         }
 
         /**
@@ -496,6 +523,10 @@ $(document).ready(function () {
                 this.instance = new Direction();
             }
             return this.instance;
+        }
+
+        static destroyInstance() {
+            this.instance = null;
         }
 
         /**
@@ -660,6 +691,10 @@ $(document).ready(function () {
             if (this.instance == null)
                 this.instance = new TurnPointHolder();
             return this.instance;
+        }
+
+        static destroyInstance() {
+            this.instance = null;
         }
         /**
          * Phương thức dùng để lưu một turn point item mới vào mảng items
@@ -980,7 +1015,24 @@ $(document).ready(function () {
              * @type {Number} đếm số lần ăn nho
              */
             this.countGrape = 0;
+
+            /**
+             * @type {Number} level hiện tại
+             */
+            this.level = 0;
         }
+
+        static mappingLevelToInstance() {
+            return {
+                1: new FirstLevelCreator(),
+                2: new SecondLevelCreator(),
+                3: new ThirdLevelCreator(),
+                4: new FourthLevelCreator(),
+                5: new FifthLevelCreator(),
+                6: new SixthLevelCreator(),
+            };
+        }
+
         /**
          * @abstract
          */
@@ -1019,6 +1071,7 @@ $(document).ready(function () {
         handleAppleCollision(game) {
             game.snake.grow();
             this.countApple++;
+            DOM.updateToUI(this);
         }
 
         /**
@@ -1029,6 +1082,7 @@ $(document).ready(function () {
             velocity *= 1.2;
             game.bait = BaitFactory.createNewBait(Sprites.APPLE, [...game.snake.cells, ...game.bricks]);
             this.countGrape++;
+            DOM.updateToUI(this);
         }
 
         checkBaitCollision(game) {
@@ -1049,14 +1103,12 @@ $(document).ready(function () {
             const snakeBody = game.snake.cells.filter((cell, index) => index > 0);
             Collision.check([game.snake.cells[0]], snakeBody, () => {
                 game.gameOver();
-                clearInterval(game.intervalId);
             });
         }
 
         checkBrickCollision(game) {
             Collision.check([game.snake.cells[0]], game.bricks, () => {
                 game.gameOver();
-                clearInterval(game.intervalId);
             });
         }
         
@@ -1074,6 +1126,40 @@ $(document).ready(function () {
             // Xử lý đầu rắn va chạm với các viên gạch thì kết thúc game
             this.checkBrickCollision(game);
         }
+
+        /**
+         * 
+         * @returns {Object} điều kiện thắng game
+         */
+        getWinGameConditions() {
+            return {
+                1: {apple: 10, grape: 0},
+                2: {apple: 23, grape: 4},
+                3: {apple: 45, grape: 0},
+                4: {apple: 28, grape: 5},
+                5: {apple: 30, grape: 0},
+                6: {apple: 8, grape: 0},
+            }
+        }
+
+        /**
+         * 
+         * @param {Number} level 
+         * @returns {Object}
+         */
+        getWinGameCondition(level) {
+            return this.getWinGameConditions()[level];
+        }
+
+        /**
+         * @returns {Boolean} trả về true nếu thỏa mãn điều kiện thắng game và ngược lại
+         */
+        isWinGame() {
+            const winCondition = this.getWinGameCondition(this.level);
+            const apple = winCondition.apple ? winCondition.apple : 0;
+            const grape = winCondition.grape ? winCondition.grape : 0;
+            return this.countApple == apple && this.countGrape == grape;
+        }
     }
 
     /**
@@ -1086,6 +1172,7 @@ $(document).ready(function () {
         createGame() {
             this.snake = Snake.createNewSnake();
             this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells]);
+            this.level = 1;
         }
         
 
@@ -1100,6 +1187,7 @@ $(document).ready(function () {
             super();
             this.isApple = true;
             this.speedUp = 5;
+            this.countAteApple = 0;
         }
         /**
          * @override
@@ -1107,6 +1195,16 @@ $(document).ready(function () {
         createGame() {
             this.snake = Snake.createNewSnake();
             this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells]);
+            this.level = 2;
+        }
+
+        /**
+         * @override
+         * @param {Game} game 
+         */
+        handleAppleCollision(game) {
+            super.handleAppleCollision(game);
+            this.countAteApple++;
         }
 
         /**
@@ -1115,8 +1213,8 @@ $(document).ready(function () {
          */
         checkBaitCollision(game) {
             super.checkBaitCollision(game);
-            if(this.countApple == this.speedUp) {
-                this.countApple = 0;
+            if(this.countAteApple == this.speedUp) {
+                this.countAteApple = 0;
                 game.bait = BaitFactory.createNewBait(Sprites.GRAPE, [...game.snake.cells, ...game.bricks]);
             }
         }
@@ -1137,6 +1235,7 @@ $(document).ready(function () {
             this.snake = this.createNewSnake();
             this.bricks = BrickFactory.createSurroundBricks();
             this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells, ...this.bricks]);
+            this.level = 3;
         }
 
         /**
@@ -1155,14 +1254,6 @@ $(document).ready(function () {
             this.snake.cells = newCells;
             return this.snake;
         }
-
-        /**
-         * @override
-         * @param {Game} game 
-         */
-        checkBaitCollision(game) {
-            this.secondLevelCreator.checkBaitCollision(game);
-        }
     }
 
     class FourthLevelCreator extends LevelCreator {
@@ -1173,6 +1264,8 @@ $(document).ready(function () {
             super();
             this.secondLevelCreator = new SecondLevelCreator();
             this.thirdLevelCreator = new ThirdLevelCreator();
+            this.speedUp = this.secondLevelCreator.speedUp;
+            this.countAteApple = 0;
         }
         /**
          * @override
@@ -1181,6 +1274,7 @@ $(document).ready(function () {
             this.snake = this.createNewSnake();
             this.bricks = this.createBricks();
             this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells, ...this.bricks]);
+            this.level = 4;
         }
 
         /**
@@ -1203,13 +1297,23 @@ $(document).ready(function () {
             return bricks;
         }
 
+
+        handleAppleCollision(game) {
+            super.handleAppleCollision(game);
+            this.countAteApple++;
+        }
+
         /**
          * Sử dụng lại phương thức của SecondLevelCreator
          * @param {Game} game 
          * @override
          */
         checkBaitCollision(game) {
-            this.secondLevelCreator.checkBaitCollision(game);
+            super.checkBaitCollision(game);
+            if(this.countAteApple == this.speedUp) {
+                this.countAteApple = 0;
+                game.bait = BaitFactory.createNewBait(Sprites.GRAPE, [...game.snake.cells, ...game.bricks]);
+            }
         }
     }
 
@@ -1231,6 +1335,7 @@ $(document).ready(function () {
             this.snake = this.createNewSnake();
             this.bricks = this.createBricks();
             this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells, ...this.bricks]);
+            this.level = 5;
         }
 
         /**
@@ -1244,9 +1349,9 @@ $(document).ready(function () {
          * @returns {Array<Brick>}
          */
         createBricks() {
-            const surroundBricks = BrickFactory.createSurroundBricks();
-            const gridBricks = BrickFactory.createGridBricks();
-            const bricks = surroundBricks.concat(gridBricks);
+            const topLineBricks = BrickFactory.createFullLineBricks(2);
+            const bottomLineBricks = BrickFactory.createStraightLineBricks(ROW - 3, 1, COLUMN - 1);
+            const bricks = topLineBricks.concat(bottomLineBricks);
             return bricks;
         }
 
@@ -1298,6 +1403,7 @@ $(document).ready(function () {
             this.bricks = this.createBricks();
             this.bait = BaitFactory.createNewBait(Sprites.APPLE, [...this.snake.cells, ...this.bricks]);
             this.cherries = this.createCherries();
+            this.level = 6;
         }
 
         /**
@@ -1343,6 +1449,12 @@ $(document).ready(function () {
             Collision.check([game.snake.cells[0]], this.cherries, () => {
                 // Đưa phần tử cherry bị ăn ra khỏi mảng cherries
                 this.cherries = this.cherries.filter(cherry => !game.snake.cells[0].point.equal(cherry.point));
+                // Để direction là opposite direction trong 5s
+                Direction.getInstance().buttonDirection = Direction.getInstance().oppositeDirection;
+                setTimeout(() => {
+                    Direction.getInstance().buttonDirection = Direction.getInstance().originalDirection;
+                }, 5000);   
+                
                 this.notify();
             });
         }
@@ -1500,10 +1612,8 @@ $(document).ready(function () {
         }
 
         gameOver() {
-            this.clearCanvas();
-            const spriteItem = new SpriteItem(new Point(0, 0), Sprites.GAME_OVER)
-            this.drawSpriteItemsFull(spriteItem);
-            this.isGameOver = true;
+            this.stop();
+            DOM.showPopup('gameOverPopup');
         }
 
         update() {
@@ -1545,8 +1655,10 @@ $(document).ready(function () {
                     if(directionMapped == _this.direction.currentDirection) 
                         return;
                     // Nếu hướng di chuyển trái ngược với hướng di chuyển hiện tại thì không thay đổi
-                    if(directionMapped == Direction.getOppositeDirection(_this.direction.currentDirection))
+                    if(directionMapped == Direction.getOppositeDirection(_this.direction.currentDirection)) {
+                        console.log();
                         return;
+                    }
                     _this.direction.setDirection(directionMapped);
                     storeNewTurnPointItem();
                 }
@@ -1557,58 +1669,151 @@ $(document).ready(function () {
             this.controlListener();
             this.update();
         }
+
+        stop() {
+            ImageBitmapHolder.destroyInstance();
+            TurnPointHolder.destroyInstance();
+            Direction.destroyInstance();
+            velocity = Constants.VELOCITY;
+            clearInterval(this.intervalId);
+        }
     }
 
     class DOM {
         constructor() {
-            this.level1 = $('#level1')[0];
-            this.level2 = $('#level2')[0];
-            this.level3 = $('#level3')[0];
-            this.level4 = $('#level4')[0];
-            this.level5 = $('#level5')[0];
-            this.level6 = $('#level6')[0];
-            this.levels = [this.level1, this.level2, this.level3, this.level4, this.level5, this.level6];
+            /**
+             * @type {LevelCreator}
+             */
+            this.levelCreator = null;
+            /**
+             * @type {Game}
+             */
+            this.game = null;
+            /**
+             * @type {Number}
+             */
+            this.currentLevel = 0;
+        }
+
+        startGame() {
+            this.game = new Game(this.levelCreator);
+            this.game.start();
+            this.currentLevel = this.levelCreator.level;
+            DOM.updateToUI(this.levelCreator);
+            this.toggleGameMenu(false);
+        }
+
+        restartGame() {
+            this.game.stop();
+            this.levelCreator = LevelCreator.mappingLevelToInstance()[this.currentLevel];
+            this.startGame();
+        }
+
+        nextGame() {
+            this.game.stop();
+            this.levelCreator = LevelCreator.mappingLevelToInstance()[this.currentLevel + 1];
+            this.startGame();
+        }
+
+        toggleGameMenu(isGameMenu) {
+            if(isGameMenu) {
+                $('.game-main').removeClass('active');
+                $('.game-menu').css('display', 'block');
+            }
+            else {
+                $('.game-main').addClass('active');
+                $('.game-menu').css('display', 'none');
+            }
+        }
+
+        hidePopupListener() {
+            $('.popup__close-btn').on('click', function () {
+                // Select tới parent có class là popup và remove active class
+                $(this).parents('.popup').removeClass('active');
+            });
+        }
+
+        showPopupListener() {
+            $('#showInfoBtn').on('click', () => {
+                DOM.showPopup('infoPopup');
+            });
+        }
+
+        static showPopup(id) {
+            $(`#${id}`).addClass('active');
+        }
+
+        static hidePopup(id) {
+            $(`#${id}`).removeClass('active');
+        }
+
+        chooseLevelListener() {
+            const _this = this;
+            $('.level').on('click', function () {
+                const level = parseInt($(this).attr('level'));
+                _this.levelCreator = LevelCreator.mappingLevelToInstance()[level];
+                _this.startGame();
+            });
+        }
+
+        backToMenu() {
+            this.game.stop();
+            this.game = null;
+            this.levelCreator = null;
+            this.toggleGameMenu(true);
+        }
+
+        backToMenuListener() {
+            const _this = this;
+            $('.game-header__back-to-menu-btn,.popup__back-to-menu').on('click', function () {
+                if(_this.game) {
+                    DOM.hidePopup('gameOverPopup');
+                    _this.backToMenu();
+                }
+            });
+
+            
+        }
+
+        restartGameListener() {
+            const _this = this;
+            $('.popup__replay').on('click', function () {
+                DOM.hidePopup('gameOverPopup');
+                _this.restartGame();
+            });
+        }
+
+        nextLevelListener() {
+            const _this = this;
+            $('.popup__next-level').on('click', function () {
+                DOM.hidePopup('gameOverPopup');
+                DOM.hidePopup('winGamePopup');
+                _this.nextGame();
+            });
         }
 
         /**
          * 
          * @param {LevelCreator} levelCreator 
          */
-        startGame(levelCreator) {
-            new Game(levelCreator).start();
-            $('.game-main').addClass('active');
-            $('.game-menu').css('display', 'none');
+        static updateToUI(levelCreator) {
+            const winGameCondition = levelCreator.getWinGameCondition(levelCreator.level);
+            if(levelCreator.isWinGame()) {
+                DOM.showPopup('winGamePopup');
+            }
+            $('#levelNum').text(levelCreator.level);
+            $('#targetAppleNum').text(winGameCondition.apple);
+            $('#ateAppleNum').text(levelCreator.countApple);
         }
 
-        listen() {
-            let levelCreator = null;
-            this.levels.forEach(level => {
-                level.addEventListener('click', () => {
-                    switch(level) {
-                        case this.level1:
-                            levelCreator = new FirstLevelCreator();
-                            break;
-                        case this.level2:
-                            levelCreator = new SecondLevelCreator();
-                            break;
-                        case this.level3:
-                            levelCreator = new ThirdLevelCreator();
-                            break;
-                        case this.level4:
-                            levelCreator = new FourthLevelCreator();
-                            break;
-                        case this.level5:
-                            levelCreator = new FifthLevelCreator();
-                            break;
-                        case this.level6:
-                            levelCreator = new SixthLevelCreator();
-                            break;
-                    }
-                    this.startGame(levelCreator);
-                });
-            });
+        listenEvents() {
+            this.chooseLevelListener();
+            this.backToMenuListener();
+            this.showPopupListener();
+            this.hidePopupListener();
+            this.restartGameListener();
+            this.nextLevelListener();
         }
     }
-
-    new DOM().listen();
+    new DOM().listenEvents();
 });
