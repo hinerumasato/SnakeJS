@@ -1,14 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Snake</title>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
+        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css' integrity='sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==' crossorigin='anonymous'/>
     <link rel="stylesheet" href="style.css">
+    <link rel="shortcut icon" href="./favicon.ico" type="image/x-icon">
 </head>
+
 <body>
-    <canvas width="800px" height="530px"></canvas>
+
+    <div id="wrapper" class="game-menu">
+        <h1>Rắn Săn Mồi</h1>
+        <h2>Chọn Level</h2>
+        <a id="level1" class="btn blue">Level 1</a>
+        <a id="level2" class="btn cancel">Level 2</a>
+        <a id="level3" class="btn grey">Level 3</a>
+        <a id="level4" class="btn orange">Level 4</a>
+        <a id="level5" class="btn green">Level 5</a>
+        <a id="level6" class="btn purple">Level 6</a>
+
+        <a class="btn blue" id="info">
+            <i style="display: inline;" class="fas fa-user"></i>
+            <span>Thông tin cá nhân</span>
+        </a>
+    </div>
+
+    <div class="game-main">
+        <div class="game-header">
+            <div class="game-header__target">
+                <span>Mục tiêu: 3 <img width="20px" height="20px" src="./img/apple.png" alt=""></span>
+            </div>
+
+            <div class="game-header__score">
+                <span>Đã ăn: 3 <img width="20px" height="20px" src="./img/apple.png" alt=""></span>
+            </div>
+
+            <div class="game-header__level">
+                <span>Level: </span>
+                <span id="level">1</span>
+            </div>
+        <canvas width="800px" height="530px"></canvas>
+    </div>
     <script src="./main.js"></script>
 </body>
+
 </html>

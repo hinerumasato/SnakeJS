@@ -1,19 +1,233 @@
+$primary-blue: #0080FF;
+$light-grey:#F3F6F9;
+$dark-grey:#303336;
+$red:#FF3149;
+$green:#00D074;
+$orange:#FFB000;
+$purple:#8A2BE2;
+
+
+$fatty:'Chewy';
+$fancy:'Fredoka One';
+$modern:'Rubik';
+
 body {
-    //background-color: #646464;
+    // background-color: #010e3b;
     background-image: url('https://th.bing.com/th/id/R.7842410d2600baddf5921a9219596ed8?rik=VP4XXRzRl7XSWg&pid=ImgRaw&r=0');
     background-size: cover;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     height: 100vh;
+}
+
+/*
+font-family: 'Varela Round', sans-serif;
+*/
+
+.btn,
+a.btn {
+  display: inline-block;
+  text-transform: none;
+  cursor: pointer;
+  text-decoration: none;
+  line-height: 1em;
+  transition: all .35s cubic-bezier(.1, 0, 0, 1);
+  border-radius: 6px;
+  padding: 15px 20px;
+  box-shadow: inset 0 0 0 rgba(0, 0, 0, 0), 0 0 0 rgba(0, 0, 0, 0);
+  margin: 8px;
+  font-family: $fancy;
+  letter-spacing: .1em;
+  /*border: 1px solid rgba(0, 0, 0, 0);*/
+  text-shadow: 0 0 rgba(0, 0, 0, 0);
+}
+
+.btn,
+a.btn:hover {
+  border-radius: 8px;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .1), 0 4px 8px rgba(0, 0, 0, .2);
+  /*border: 1px solid rgba(0, 0, 0, .1);*/
+  transform: scale(1.06);
+  text-shadow: 0 -1px rgba(0, 0, 0, .1);
+}
+
+.btn,
+a.btn:active {
+  transform: scale(0.98);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .2), 0 1px 3px rgba(0, 0, 0, .3);
+  /*border: 1px solid rgba(0, 0, 0, .1);*/
+}
+
+.btn,
+a.btn:visited {
+  transform: scale(1);
+}
+
+.blue,
+a.blue {
+  color: white;
+  font-weight: 600;
+  background: $primary-blue;
+}
+
+.blue,
+a.blue:hover {
+  background: lighten($primary-blue, 4%);
+}
+
+.blue,
+a.blue:active {
+  background: darken($primary-blue, 5%);
+}
+
+.grey,
+a.grey {
+  color: $dark-grey;
+  background: $light-grey;
+}
+
+.grey,
+a.grey:hover {
+  background: lighten($light-grey, 1%);
+  color: darken($dark-grey, 100%);
+}
+
+.grey,
+a.grey:active {
+  background: darken($light-grey, 2%);
+}
+
+.cancel,
+a.cancel {
+  color: white;
+  background: $red;
+}
+
+.cancel,
+a.cancel:hover {
+  color: #fff;
+  background: lighten($red, 1%);
+}
+
+.cancel,
+a.cancel:active {
+  background: darken($red, 10%);
+}
+
+
+.orange,
+a.orange {
+    color: white;
+    background: $orange;
+}
+
+.green,
+a.green {
+    color: white;
+    background: $green;
+}
+
+.purple,
+a.purple {
+    color: white;
+    background: $purple;
+}
+
+i {
+  height: 24px;
+  width: 24px;
+  display: inline-block;
+  border-radius: 100px;
+  margin: 8px;
+  border: 1px solid rgba(0, 0, 0, .1) !important;
+  box-shadow: 0px 0px 0px 0px rgba(0, 0, 0, 0);
+  transition: all 1s cubic-bezier(.1, 0, 0, 1);
+}
+
+i:hover {
+  box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, .2);
+  border: 1px solid rgba(0, 0, 0, 0) !important;
+  transform: scale(1.2);
+}
+
+.green {
+  background: $green;
+}
+
+.orange {
+  background: $orange;
+}
+
+
+/* styling */
+
+body {
+  background-color: $light-grey;
+  color: $dark-grey;
+  font-family: $modern;
+  font-feature-settings: "liga" off;
+}
+
+h1 {
+  font-weight: 300;
+  font-size: 50px;
+  margin-bottom: 20px;
+  margin-top: 50px;
+}
+
+h2 {
+  font-weight: 300;
+  font-size: 24px;
+  margin-bottom: 30px;
+  margin-top: 50px;
+}
+
+p {
+  font-weight: 400;
+  font-size: 16px;
+  margin-bottom: 30px;
+  color: lighten($dark-grey, 54%);
+}
+
+#wrapper {
+  -webkit-font-smoothing: antialiased;
+  opacity: .9;
+  text-align: center;
+  margin-top: 100px;
+  font-size: 16px;
+  letter-spacing: 0em;
+  background-color: #fff;
+  padding: 20px 0px 80px 0px;
+  width: 90vw;
+  margin: 40px auto;
+  border-radius: 4px;
+}
+
+#info {
+    display: block; 
+    width: fit-content; 
+    margin: 20px auto;
+    border: solid 2px #000;
 }
 
 canvas {
     background-color: #FFF;
     opacity: .92;
-    // background-image: url('./img/background.png');
-    // background-size: auto;
-    // background-position: center;
-    // width: 350px;
-    // height: 350px;
+}
+
+.game-main {
+    display: none;
+}
+
+.game-main.active {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.game-header__score
+,.game-header__target
+,.game-header__level {
+    color: white;
+    font-weight: 600;
+    font-size: 20px;
 }

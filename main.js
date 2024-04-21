@@ -45,7 +45,7 @@ $(document).ready(function () {
     }
 
     const Constants = {
-        INIT_LENGTH: 6, // Chiều dài ban đầu của rắn
+        INIT_LENGTH: 3, // Chiều dài ban đầu của rắn
     }
 
     /**
@@ -143,19 +143,25 @@ $(document).ready(function () {
         }
 
         /**
-         * 
-         * @param {Point} point 
-         * @param {Point} beforePoint 
-         * @returns 
+         * Phương thức dùng để mapping từ direction sang sprite của đuôi rắn tương ứng
+         * @param {Direction} direction
+         * @returns {string} Sprite của đuôi
          */
-        static mapBeforePointToTail(point, beforePoint) {
-            if (point.x == beforePoint.x) {
-                if (point.y > beforePoint.y) return Sprites.TAIL_RIGHT;
-                else return Sprites.TAIL_LEFT;
-            } else {
-                if (point.x > beforePoint.x) return Sprites.TAIL_DOWN;
-                else return Sprites.TAIL_UP;
+        static mapDirectionToTail(direction) {
+            const oldDirection = direction.oldDirection;
+            const currentDirection = direction.currentDirection;
+
+            if (oldDirection) {
+                if ((oldDirection == Direction.LEFT || oldDirection == Direction.RIGHT) && currentDirection == Direction.DOWN)
+                    return Sprites.TAIL_UP;
+                if ((oldDirection == Direction.LEFT || oldDirection == Direction.RIGHT) && currentDirection == Direction.UP)
+                    return Sprites.TAIL_DOWN;
+                if ((oldDirection == Direction.UP || oldDirection == Direction.DOWN) && currentDirection == Direction.RIGHT)
+                    return Sprites.TAIL_LEFT;
+                if ((oldDirection == Direction.UP || oldDirection == Direction.DOWN) && currentDirection == Direction.LEFT)
+                    return Sprites.TAIL_RIGHT;
             }
+            else return Sprites.TAIL_LEFT;
         }
 
         /**
@@ -810,27 +816,21 @@ $(document).ready(function () {
                 const newPoint = beforeCellPoint;
                 const beforeCellSprite = beforeCell.sprite;
 
-                
                 // Kiểm tra đuôi đi qua
-                if (i == this.length - 1) {
-                    if(turnPointHolder.isContainPoint(newPoint)) {
-                        turnPointHolder.removeByPoint(newPoint);
-                        cell = new Cell(newPoint, Util.mapBeforePointToTail(cell.point, beforeCellPoint));
-                    } else {
-                        cell = new Cell(newPoint, cell.sprite);
-                    }
-                } else {
-                    // Kiểm tra body rắn có nằm trong holder hay không
-                    if (turnPointHolder.isContainPoint(newPoint) && i != 1) {
-                        const item = turnPointHolder.getItemByPoint(newPoint);
-                        cell = new Cell(newPoint, item.sprite);
-                    }
-                    else if(i == 1) {
-                        cell = new Cell(newPoint, Util.mapDirectionToTurnSprite(Direction.getInstance()));
-                    }
-                    else cell = new Cell(newPoint, beforeCellSprite);
+                if (i == this.length - 1 && turnPointHolder.isContainPoint(cell.point)) {
+                    turnPointHolder.removeByPoint(cell.point);
+                    cell = new Cell(newPoint, Util.mapDirectionToTail(Direction.getInstance()));
                 }
 
+                // Kiểm tra body rắn có nằm trong holder hay không
+                if (turnPointHolder.isContainPoint(newPoint) && i != 1) {
+                    const item = turnPointHolder.getItemByPoint(newPoint);
+                    cell = new Cell(newPoint, item.sprite);
+                }
+                else if(i == 1) {
+                    cell = new Cell(newPoint, Util.mapDirectionToTurnSprite(Direction.getInstance()));
+                }
+                else cell = new Cell(newPoint, beforeCellSprite);
 
                 newCells[i] = cell;
             }
@@ -972,9 +972,14 @@ $(document).ready(function () {
             this.bricks = [];
             
             /**
-             * @type {Number} đếm số lần ăn mồi
+             * @type {Number} đếm số lần ăn táo
              */
-            this.count = 0;
+            this.countApple = 0;
+
+            /**
+             * @type {Number} đếm số lần ăn nho
+             */
+            this.countGrape = 0;
         }
         /**
          * @abstract
@@ -1013,7 +1018,7 @@ $(document).ready(function () {
          */
         handleAppleCollision(game) {
             game.snake.grow();
-            this.count++;
+            this.countApple++;
         }
 
         /**
@@ -1023,6 +1028,7 @@ $(document).ready(function () {
         handleGrapeCollision(game) {
             velocity *= 1.2;
             game.bait = BaitFactory.createNewBait(Sprites.APPLE, [...game.snake.cells, ...game.bricks]);
+            this.countGrape++;
         }
 
         checkBaitCollision(game) {
@@ -1109,8 +1115,8 @@ $(document).ready(function () {
          */
         checkBaitCollision(game) {
             super.checkBaitCollision(game);
-            if(this.count == this.speedUp) {
-                this.count = 0;
+            if(this.countApple == this.speedUp) {
+                this.countApple = 0;
                 game.bait = BaitFactory.createNewBait(Sprites.GRAPE, [...game.snake.cells, ...game.bricks]);
             }
         }
@@ -1120,6 +1126,10 @@ $(document).ready(function () {
      * Level 3 cần tạo các viên gạch bao xung quanh game, qua màn khi ăn đủ 20 trái táo
      */
     class ThirdLevelCreator extends LevelCreator {
+        constructor() {
+            super();
+            this.secondLevelCreator = new SecondLevelCreator();
+        }
         /**
          * @override
          */
@@ -1144,6 +1154,14 @@ $(document).ready(function () {
             }
             this.snake.cells = newCells;
             return this.snake;
+        }
+
+        /**
+         * @override
+         * @param {Game} game 
+         */
+        checkBaitCollision(game) {
+            this.secondLevelCreator.checkBaitCollision(game);
         }
     }
 
@@ -1266,7 +1284,7 @@ $(document).ready(function () {
              * Số lượng thuốc độc
              * @type {Number}
              */
-            this.cherryNum = 5;
+            this.cherryNum = 3;
             /**
              * @type {Array<SpriteItem>}
              */
@@ -1541,5 +1559,56 @@ $(document).ready(function () {
         }
     }
 
-    new Game(new SecondLevelCreator()).start();
+    class DOM {
+        constructor() {
+            this.level1 = $('#level1')[0];
+            this.level2 = $('#level2')[0];
+            this.level3 = $('#level3')[0];
+            this.level4 = $('#level4')[0];
+            this.level5 = $('#level5')[0];
+            this.level6 = $('#level6')[0];
+            this.levels = [this.level1, this.level2, this.level3, this.level4, this.level5, this.level6];
+        }
+
+        /**
+         * 
+         * @param {LevelCreator} levelCreator 
+         */
+        startGame(levelCreator) {
+            new Game(levelCreator).start();
+            $('.game-main').addClass('active');
+            $('.game-menu').css('display', 'none');
+        }
+
+        listen() {
+            let levelCreator = null;
+            this.levels.forEach(level => {
+                level.addEventListener('click', () => {
+                    switch(level) {
+                        case this.level1:
+                            levelCreator = new FirstLevelCreator();
+                            break;
+                        case this.level2:
+                            levelCreator = new SecondLevelCreator();
+                            break;
+                        case this.level3:
+                            levelCreator = new ThirdLevelCreator();
+                            break;
+                        case this.level4:
+                            levelCreator = new FourthLevelCreator();
+                            break;
+                        case this.level5:
+                            levelCreator = new FifthLevelCreator();
+                            break;
+                        case this.level6:
+                            levelCreator = new SixthLevelCreator();
+                            break;
+                    }
+                    this.startGame(levelCreator);
+                });
+            });
+        }
+    }
+
+    new DOM().listen();
 });
